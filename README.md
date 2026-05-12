@@ -121,11 +121,12 @@ This system is inspired by, but deviates from:
 - **[AGENTS.md](https://agents.md)** - open standard for the agent-facing instruction file. Not yet natively read by Claude Code - see the Claude Code memory docs link below.
 - **[Anthropic Claude Code memory docs](https://code.claude.com/docs/en/memory#agentsmd)** - documents the `@AGENTS.md` import workaround used in `CLAUDE.md` above. The native-AGENTS.md feature requests ([#6235](https://github.com/anthropics/claude-code/issues/6235), [#34235](https://github.com/anthropics/claude-code/issues/34235), [#31005](https://github.com/anthropics/claude-code/issues/31005)) remain open.
 
-Also shaped by conversations with:
+Also shaped by conversations with, and prior work by:
 
 - [cbro](https://cbro.dev/)
 - [est](https://emily.news/)
 - [Chris Killpack](https://github.com/chriskillpack)
+- [Frank Denis](https://00f.net/) and his [Swival](https://swival.dev/) project
 - [Jordan Alperin](https://alpjor.com/)
 - [Steve Klabnik](https://steveklabnik.com/)
 
