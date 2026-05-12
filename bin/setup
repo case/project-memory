@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Verify the environment has what's needed to use project-memory, and wire
+# up in-repo git hooks (.githooks/pre-commit, .githooks/pre-push).
+# This project is stdlib-only; there are no Python deps to install.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Error: python3 not found on PATH" >&2
+    exit 1
+fi
+
+python3 - <<'PY'
+import sys
+v = sys.version_info
+if v < (3, 10):
+    print(f"Error: Python 3.10+ required, found {v[0]}.{v[1]}", file=sys.stderr)
+    sys.exit(1)
+print(f"✅ python3 {v[0]}.{v[1]}.{v[2]} is installed")
+PY
+
+if [[ -d .git ]]; then
+    git config core.hooksPath .githooks
+    echo "✅ git hooks wired (.githooks/pre-commit, .githooks/pre-push)"
+fi
+
+echo
+echo "✅ Environment OK."
+echo
+echo "Optional tools for bin/lint (install via mise or your package manager):"
+echo "  - ruff       (Python linting and formatting)"
+echo "  - shellcheck (shell script linting)"

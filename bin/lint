@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Lint Python and shell files. Markdown files are intentionally skipped.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+missing=()
+for tool in ruff shellcheck; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        missing+=("$tool")
+    fi
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "Error: missing linters: ${missing[*]}" >&2
+    echo "Install via mise or your package manager." >&2
+    exit 1
+fi
+
+echo "==> ruff check"
+ruff check init tests | sed 's/^All checks passed!$/✅ All checks passed!/'
+
+echo "==> ruff format --check"
+ruff format --check init tests
+
+echo "==> shellcheck"
+shellcheck bin/*
+
+echo
+echo "✅ Lint passed."
