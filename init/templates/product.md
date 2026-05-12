@@ -13,7 +13,7 @@ ${desc}
 
 ## Why this exists
 
-<The motivating thesis — the problem the project solves and why it's worth solving now.>
+<The motivating thesis - the problem the project solves and why it's worth solving now.>
 
 ## Who it's for
 
@@ -21,7 +21,7 @@ ${desc}
 
 ## What it's not
 
-<Explicit out-of-scope markers — what the project is deliberately not.>
+<Explicit out-of-scope markers - what the project is deliberately not.>
 
 ## Implementation independence
 

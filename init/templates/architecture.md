@@ -13,7 +13,7 @@ The current implementation of ${name}. Replace any of this and the [product](pro
 
 ## Repo layout
 
-<Directory tree — top-level dirs and what they hold.>
+<Directory tree - top-level dirs and what they hold.>
 
 ## Stack
 

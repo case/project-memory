@@ -7,7 +7,7 @@ author: ${author}
 tags: [log, meta]
 ---
 
-# ${today} — Memory system bootstrap
+# ${today} - Memory system bootstrap
 
 Created the project memory system using `init/bootstrap.py`.
 
