@@ -128,6 +128,7 @@ Also shaped by conversations with, and prior work by:
 - [Chris Killpack](https://github.com/chriskillpack)
 - [Frank Denis](https://00f.net/) and his [Swival](https://swival.dev/) project
 - [Jordan Alperin](https://alpjor.com/)
+- [Peter Teichman](https://teichman.org/)
 - [Steve Klabnik](https://steveklabnik.com/)
 
 ## License
