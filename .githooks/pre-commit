@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs bin/lint before each commit. Wired up by bin/setup via core.hooksPath.
+
+set -euo pipefail
+
+exec "$(git rev-parse --show-toplevel)/bin/lint"
