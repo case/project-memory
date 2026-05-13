@@ -12,4 +12,6 @@ Project memory lives in `docs/memory/`. The index is at [`docs/memory/memory-ind
 **When a new decision is made**: write or update the relevant memory entry in the same conversation, and surface the diff. Memory updates review like any other code change.
 
 **When memory contradicts the code**: surface the conflict. Trust the code after verifying, then update or remove the stale entry.
+
+**Monorepos**: if this repo contains subprojects with their own `docs/memory/`, treat each subproject's memory as authoritative for work inside that subproject. The root `docs/memory/` covers concerns that span subprojects. See [`docs/memory/product.md`](docs/memory/product.md#monorepos) for the rationale.
 <!-- project-memory:end -->
