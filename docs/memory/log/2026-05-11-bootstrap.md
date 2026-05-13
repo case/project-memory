@@ -2,7 +2,6 @@
 title: Memory system bootstrap
 summary: Set up the project memory system using the bootstrap script
 created: 2026-05-11
-updated: 2026-05-11
 author: Eric Case
 tags: [log, meta]
 ---

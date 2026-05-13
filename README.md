@@ -30,6 +30,10 @@ Core files (`product.md`, `architecture.md`) plus a dated `log/` subdir. Add mor
 
 **Frontmatter is schema-like** - Every entry has the same fields. If memory ever migrates to a database (or a static-site search index, or anything queryable), the frontmatter fields become columns.
 
+## Monorepos
+
+A monorepo is in scope. Run the bootstrap inside each subproject so each has its own `docs/memory/`, and optionally once more at the repo root for cross-cutting concerns. The root `AGENTS.md` should route agents to the relevant subproject memory when working inside one. See [`product.md`](docs/memory/product.md#monorepos) for the rationale.
+
 ---
 
 ## Getting started
@@ -93,7 +97,7 @@ Every memory entry (core file or log file) starts with this frontmatter:
 | title    | string         | Human-readable name                                                           | `Adopted VictoriaMetrics for observability`                                        |
 | summary  | string ≤120ch  | Index hook - what an agent reads to decide if the entry is relevant           | `VM stack (logs+metrics+traces) on <hosting service>; rejected <other stack> for lack of maturity` |
 | created  | YYYY-MM-DD     | Immutable date of record                                                      | `2026-05-07`                                                                       |
-| updated  | YYYY-MM-DD     | Bumped on meaningful edits; drives staleness review                           | `2026-05-08`                                                                       |
+| updated  | YYYY-MM-DD     | Optional. Add on the first meaningful edit; bump on subsequent edits. Absent means same as `created`. Drives staleness review | `2026-05-08`                                                                       |
 | author   | string         | Originator. Immutable - credit, not ownership (git blame covers ongoing edits)| `<git user.name>`                                                                  |
 | tags     | array<string>  | Freeform, kebab-case. For grep/filter                                         | `[log, decisions, observability]`                                                  |
 

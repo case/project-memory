@@ -2,7 +2,6 @@
 title: Memory system bootstrap
 summary: Set up the project memory system using the bootstrap script
 created: ${today}
-updated: ${today}
 author: ${author}
 tags: [log, meta]
 ---

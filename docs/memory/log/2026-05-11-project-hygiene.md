@@ -2,7 +2,6 @@
 title: Project hygiene scaffolding
 summary: CI, git hooks, ruff config, Dependabot, and bootstrap hardening. Standard OSS hygiene baseline.
 created: 2026-05-11
-updated: 2026-05-11
 author: Eric Case
 tags: [log, project-hygiene, ci, tooling]
 ---

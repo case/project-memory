@@ -2,7 +2,6 @@
 title: Architecture
 summary: Just a folder full of markdown files, with some frontmatter
 created: 2026-05-11
-updated: 2026-05-11
 author: Eric Case
 tags: [architecture, stack, codebase, conventions]
 ---

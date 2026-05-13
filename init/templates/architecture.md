@@ -2,7 +2,6 @@
 title: Architecture
 summary: <One-line summary of stack + hosting>
 created: ${today}
-updated: ${today}
 author: ${author}
 tags: [architecture, stack, codebase, conventions]
 ---

@@ -2,7 +2,6 @@
 title: Product
 summary: ${desc}
 created: ${today}
-updated: ${today}
 author: ${author}
 tags: [product, scope, goals]
 ---
