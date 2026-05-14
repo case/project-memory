@@ -26,6 +26,7 @@ content outside the markers is preserved.
 import argparse
 import datetime
 import difflib
+import os
 import pathlib
 import string
 import subprocess
@@ -47,6 +48,36 @@ def git_user_name(cwd: pathlib.Path) -> str:
         return result.stdout.strip() or "unknown"
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
+
+
+def colorize_diff(diff: str) -> str:
+    """Color a unified diff with ANSI codes when stdout is a TTY.
+
+    Respects NO_COLOR (https://no-color.org/) and skips coloring when stdout
+    is piped or redirected so codes don't leak into files.
+    """
+    if not sys.stdout.isatty() or os.environ.get("NO_COLOR"):
+        return diff
+    reset = "\033[0m"
+    bold = "\033[1m"
+    red = "\033[31m"
+    green = "\033[32m"
+    cyan = "\033[36m"
+    out = []
+    for line in diff.splitlines(keepends=True):
+        eol = "\n" if line.endswith("\n") else ""
+        body = line[: -len(eol)] if eol else line
+        if body.startswith(("+++", "---")):
+            out.append(f"{bold}{body}{reset}{eol}")
+        elif body.startswith("+"):
+            out.append(f"{green}{body}{reset}{eol}")
+        elif body.startswith("-"):
+            out.append(f"{red}{body}{reset}{eol}")
+        elif body.startswith("@@"):
+            out.append(f"{cyan}{body}{reset}{eol}")
+        else:
+            out.append(line)
+    return "".join(out)
 
 
 def confirm(prompt: str) -> bool:
@@ -152,7 +183,7 @@ def upgrade_agents_md(project_root: pathlib.Path, templates_dir: pathlib.Path) -
             tofile="template",
         )
     )
-    print(diff, end="")
+    print(colorize_diff(diff), end="")
     if not confirm(f"\nReplace marker block in {project_agents}? [y/N]: "):
         print("aborted")
         return
