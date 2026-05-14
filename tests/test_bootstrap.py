@@ -36,6 +36,25 @@ def run_bootstrap(
     return subprocess.run(cmd, input=input_text, capture_output=True, text=True)
 
 
+def run_upgrade(
+    project_dir: pathlib.Path,
+    *,
+    input_text: str = "",
+    templates_dir: pathlib.Path | None = None,
+) -> subprocess.CompletedProcess:
+    """Invoke bootstrap.py --upgrade against project_dir as a subprocess."""
+    cmd = [
+        sys.executable,
+        str(BOOTSTRAP_PY),
+        "--upgrade",
+        "--project",
+        str(project_dir),
+    ]
+    if templates_dir is not None:
+        cmd.extend(["--templates-dir", str(templates_dir)])
+    return subprocess.run(cmd, input=input_text, capture_output=True, text=True)
+
+
 class TestFreshProject(unittest.TestCase):
     """Bootstrapping a clean target directory creates all six files."""
 
@@ -200,6 +219,94 @@ class TestClaudeMdMerge(unittest.TestCase):
             content = (tmpdir / "CLAUDE.md").read_text()
             self.assertTrue(content.startswith("@AGENTS.md"))
             self.assertIn("Custom Claude instructions.", content)
+
+
+class TestUpgrade(unittest.TestCase):
+    """--upgrade replaces the marker block with the current template's contents."""
+
+    def test_replaces_stale_block_with_template_contents(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            stale = (
+                "# MyProj\n\n"
+                "Description.\n\n"
+                "<!-- project-memory:start -->\n"
+                "## Project memory\n\n"
+                "OLD RULE TEXT THAT NO LONGER MATCHES THE TEMPLATE.\n"
+                "<!-- project-memory:end -->\n\n"
+                "## Custom user section\n\nUser stuff.\n"
+            )
+            (tmpdir / "AGENTS.md").write_text(stale)
+            result = run_upgrade(tmpdir, input_text="y\n")
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("OLD RULE TEXT", result.stdout)
+            content = (tmpdir / "AGENTS.md").read_text()
+            self.assertNotIn("OLD RULE TEXT", content)
+            self.assertIn("Project memory lives in", content)
+            self.assertIn("## Custom user section", content)
+            self.assertIn("User stuff.", content)
+
+    def test_no_op_when_already_current(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            bootstrap_result = run_bootstrap(tmpdir)
+            self.assertEqual(
+                bootstrap_result.returncode, 0, msg=bootstrap_result.stderr
+            )
+            before = (tmpdir / "AGENTS.md").read_text()
+            result = run_upgrade(tmpdir)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("already current", result.stdout)
+            self.assertEqual((tmpdir / "AGENTS.md").read_text(), before)
+
+    def test_preserves_content_outside_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            existing = (
+                "# Custom Header\n\n"
+                "User preamble that must survive.\n\n"
+                "<!-- project-memory:start -->\n"
+                "## Project memory\n\nOLD CONTENT\n"
+                "<!-- project-memory:end -->\n\n"
+                "## Trailing user section\n\nMore user content.\n"
+            )
+            (tmpdir / "AGENTS.md").write_text(existing)
+            result = run_upgrade(tmpdir, input_text="y\n")
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            content = (tmpdir / "AGENTS.md").read_text()
+            self.assertIn("# Custom Header", content)
+            self.assertIn("User preamble that must survive.", content)
+            self.assertIn("## Trailing user section", content)
+            self.assertIn("More user content.", content)
+            self.assertNotIn("OLD CONTENT", content)
+
+    def test_aborts_when_user_declines(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            stale = (
+                "<!-- project-memory:start -->\n"
+                "## Project memory\n\nOLD\n"
+                "<!-- project-memory:end -->\n"
+            )
+            (tmpdir / "AGENTS.md").write_text(stale)
+            result = run_upgrade(tmpdir, input_text="n\n")
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertEqual((tmpdir / "AGENTS.md").read_text(), stale)
+
+    def test_errors_when_agents_md_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            result = run_upgrade(tmpdir)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("not found", result.stderr)
+
+    def test_errors_when_markers_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            (tmpdir / "AGENTS.md").write_text("# Has no markers\n\nNothing here.\n")
+            result = run_upgrade(tmpdir)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("markers", result.stderr)
 
 
 if __name__ == "__main__":

@@ -88,6 +88,18 @@ The script substitutes `${var}` placeholders using Python's `string.Template`. O
 
 If a template ever needs a literal `$`, escape it as `$$` (a `string.Template` requirement).
 
+## Upgrading
+
+To pick up changes to the memory rules in an already-bootstrapped project, re-run the same script with `--upgrade`:
+
+```
+python3 /path/to/project-memory/init/bootstrap.py --upgrade --project /path/to/your/project
+```
+
+The script locates the `<!-- project-memory:start -->` ... `<!-- project-memory:end -->` block in your `AGENTS.md`, diffs it against the current template, and prompts before replacing. Content outside the markers is preserved. If your block already matches, the script exits with "already current."
+
+The block between the markers is system-owned. Don't hand-edit it; add custom rules outside the markers instead.
+
 ## Frontmatter schema
 
 Every memory entry (core file or log file) starts with this frontmatter:
@@ -108,7 +120,9 @@ Deliberately not included:
 ## Conventions for working with the system
 
 - **Core files stay short** (~50 lines) - Past that, split (e.g. `codebase.md`, `conventions.md`) and update `memory-index.md`.
+- **Entries are concise** - Bigger than a commit message, smaller than a design doc. A handful of bullets, short rationales per decision. If a bullet needs a paragraph, the entry is probably bundling.
 - **One event per log file** - Multiple events on the same day = multiple files (`2026-05-08-layout-flatten.md`, `2026-05-08-dep-bump.md`). Don't append a second event onto an existing log file - keeps retrieval precise and titles meaningful.
+- **Log slugs stay short** (1-3 words) - The slug after the date is a topic distillation, not a sentence. If you need more, the entry is probably bundling decisions and should be split.
 - **Log entries are append-only** - If superseded, write a *new* log entry that links back; don't rewrite history. This shows the evolution of the discussion and decision-making process.
 
 ## Anti-patterns
