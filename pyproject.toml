@@ -1,3 +1,18 @@
+[project]
+name = "project-memory"
+version = "0"
+requires-python = ">=3.10"
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.20",
+    "shellcheck-py==0.11.0.1",
+    "pymarkdownlnt==0.9.38",
+]
+
 [tool.ruff]
 target-version = "py310"
 
@@ -10,6 +25,13 @@ select = [
     "UP",  # pyupgrade (modernize syntax for target-version)
     "SIM", # flake8-simplify
 ]
-# E501 (line-too-long) is handled by `ruff format`; double-enforcing in the
-# linter produces noise on intentional long strings the formatter left alone.
+# E501 (line-too-long) is handled by `ruff format`
 ignore = ["E501"]
+
+[tool.pymarkdown]
+extensions.front-matter.enabled = true
+plugins.md013.enabled = false # line-length
+plugins.md025.enabled = false # single-h1
+plugins.md032.enabled = false # blanks-around-lists
+plugins.md040.enabled = false # fenced-code-language
+plugins.md041.enabled = false # first-line-heading

@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Verify the environment has what's needed to use project-memory, and wire
-# up in-repo git hooks (.githooks/pre-commit, .githooks/pre-push).
-# This project is stdlib-only; there are no Python deps to install.
+# Verify the environment, install the pinned dev tools
 
 set -euo pipefail
 
@@ -21,6 +19,15 @@ if v < (3, 10):
 print(f"✅ python3 {v[0]}.{v[1]}.{v[2]} is installed")
 PY
 
+if command -v uv >/dev/null 2>&1; then
+    echo "==> uv sync (installing pinned dev tools: ruff, shellcheck, pymarkdown)"
+    uv sync --locked
+    echo "✅ dev tools installed"
+else
+    echo "⚠️  uv not found - install it (mise, or https://docs.astral.sh/uv/)" >&2
+    echo "   so bin/lint can run the pinned linters." >&2
+fi
+
 if [[ -d .git ]]; then
     git config core.hooksPath .githooks
     echo "✅ git hooks wired (.githooks/pre-commit, .githooks/pre-push)"
@@ -28,7 +35,3 @@ fi
 
 echo
 echo "✅ Environment OK."
-echo
-echo "Optional tools for bin/lint (install via mise or your package manager):"
-echo "  - ruff       (Python linting and formatting)"
-echo "  - shellcheck (shell script linting)"
