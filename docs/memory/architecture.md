@@ -24,13 +24,15 @@ The current implementation of project-memory. Replace any of this and the [produ
 /AGENTS.md        # Agent instructions for how to use this system.
 /CLAUDE.md        # Come on Anthropic, just adopt AGENTS.md
 /LICENSE          # MIT license
-/pyproject.toml   # For tooling config
+/pyproject.toml   # Tooling config + pinned dev-tool versions
+/uv.lock          # Locked dev-tool versions, installed by uv
 ```
 
 ## Stack
 
 - Text files - The memory system is just `.md` markdown text files, UTF-8 encoded.
-- Python stdlib - The bootstrap script is just basic Python, with no third-party dependencies.
+- Python stdlib - The bootstrap script is just basic Python, with no runtime third-party dependencies.
+- Dev tooling - ruff, shellcheck, and pymarkdown, version-pinned in `pyproject.toml` (`[dependency-groups]`) and run via `uv`.
 
 ## Vendor decisions
 
@@ -38,12 +40,14 @@ Not applicable.
 
 ## Conventions
 
-Simple and min-viable, no outside deps aside from the lint tooling.
+Simple and min-viable. No runtime dependencies; the linters are pinned dev tools.
 
 - Python 3.10+ floor (declared in `pyproject.toml` and verified in `bin/setup`)
+- Dev linters pinned in `pyproject.toml` `[dependency-groups]` + `uv.lock`, run via `uv run --locked` in `bin/lint` (`.venv` is gitignored)
 - Ruff for lint/format with `target-version = "py310"`; rules: E, F, I, B, UP, SIM; E501 ignored (formatter handles it)
-- Shellcheck for `bin/*` and `.githooks/*`
+- Shellcheck (via the `shellcheck-py` wrapper) for `bin/*`
+- PyMarkdown for Markdown, config in `[tool.pymarkdown]` (front-matter extension on)
 - Tests via `python3 -m unittest`
 - Git hooks in `.githooks/` wired via `core.hooksPath`: `pre-commit` → `bin/lint`, `pre-push` → `bin/test`
 - CI on the `ubuntu-slim` runner, Python 3 is preinstalled
-- Dependabot on weekly cadence for GitHub Actions, just for `actions/checkout`
+- Dependabot monthly for GitHub Actions and the `uv` dev-tool group, with a 14-day cooldown

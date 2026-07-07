@@ -5,10 +5,14 @@ Project decisions, architecture, and conventions. Two core files plus a dated `l
 Agents: consult before suggesting layout, naming, dependencies, vendors, or conventions. Verify against the codebase before relying on a specific path or name - memory can lag reality.
 
 ## Core
+
 - [Product](product.md) - what project-memory is and why; implementation-independent
 - [Architecture](architecture.md) - current implementation: stack, layout, conventions
 
 ## Log (newest first)
+
+- [2026-07-07 Pinned dev toolchain via uv](log/2026-07-07-uv-toolchain.md) - linters pinned in `pyproject.toml` + `uv.lock`, run via `uv`, Dependabot-managed with a 14-day cooldown
+- [2026-07-06 Markdown linting via PyMarkdown](log/2026-07-06-markdown-lint.md) - pure-Python linter (no Node); config in `pyproject.toml`, front-matter extension required
 - [2026-05-13 --upgrade flag for bootstrap.py](log/2026-05-13-upgrade-flag.md) - re-syncs the AGENTS.md marker block to the current template; content outside the markers is preserved
 - [2026-05-13 Entries are concise](log/2026-05-13-concise-entries.md) - bigger than a commit message, smaller than a design doc
 - [2026-05-13 Log slugs are 1-3 words](log/2026-05-13-slug-brevity.md) - filename slug after the date is a topic distillation; if it needs more than 3 words, split the entry
