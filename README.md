@@ -45,7 +45,7 @@ Three ways to bootstrap, pick whichever you prefer:
 [`init/bootstrap.py`](init/bootstrap.py) and its [`init/templates/`](init/templates/) directory are everything you need. Python 3.10+, stdlib-only - no install, no `chmod`, no `$PATH` setup. Clone this repo, then run from anywhere:
 
 ```
-$ python3 /path/to/project-memory/init/bootstrap.py --project /path/to/your/project "<project name>" "<project description>"
+python3 /path/to/project-memory/init/bootstrap.py --project /path/to/your/project "<project name>" "<project description>"
 ```
 
 Or `cd` into your target project first and omit `--project` (defaults to the current directory):
@@ -111,7 +111,7 @@ Every memory entry (core file or log file) starts with this frontmatter:
 | created  | YYYY-MM-DD     | Immutable date of record                                                      | `2026-05-07`                                                                       |
 | updated  | YYYY-MM-DD     | Optional. Add on the first meaningful edit; bump on subsequent edits. Absent means same as `created`. Drives staleness review | `2026-05-08`                                                                       |
 | author   | string         | Originator. Immutable - credit, not ownership (git blame covers ongoing edits)| `<git user.name>`                                                                  |
-| tags     | array<string>  | Freeform, kebab-case. For grep/filter                                         | `[log, decisions, observability]`                                                  |
+| tags     | `array<string>` | Freeform, kebab-case. For grep/filter                                         | `[log, decisions, observability]`                                                  |
 
 Deliberately not included:
 - `status` (active/superseded/etc.) - if it's in memory it's true; if not, delete it and git remembers

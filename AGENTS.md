@@ -3,6 +3,7 @@
 A lightweight, file-based memory system for small software projects. See [`docs/memory/product.md`](docs/memory/product.md) for what this is, [`docs/memory/architecture.md`](docs/memory/architecture.md) for how it's currently built.
 
 <!-- project-memory:start -->
+
 ## Project memory
 
 Project memory lives in `docs/memory/`. The index is at [`docs/memory/memory-index.md`](docs/memory/memory-index.md).
