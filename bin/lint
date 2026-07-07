@@ -23,7 +23,7 @@ uv run --locked shellcheck bin/*
 
 # PyMarkdown reads [tool.pymarkdown] from pyproject.toml
 echo "==> pymarkdown"
-uv run --locked pymarkdown --strict-config scan -r .
+uv run --locked pymarkdown --strict-config scan --respect-gitignore -r .
 
 echo
 echo "✅ Lint passed."

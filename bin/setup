@@ -24,8 +24,10 @@ if command -v uv >/dev/null 2>&1; then
     uv sync --locked
     echo "✅ dev tools installed"
 else
-    echo "⚠️  uv not found - install it (mise, or https://docs.astral.sh/uv/)" >&2
-    echo "   so bin/lint can run the pinned linters." >&2
+    echo "Error: uv not found on PATH." >&2
+    echo "bin/lint and the pre-commit hook require it, so commits will be blocked" >&2
+    echo "until you install uv (mise, or https://docs.astral.sh/uv/), then re-run." >&2
+    exit 1
 fi
 
 if [[ -d .git ]]; then
