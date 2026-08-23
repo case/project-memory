@@ -7,6 +7,7 @@ to this script (override with --templates-dir). Renders them into:
   - AGENTS.md and CLAUDE.md at the project root
   - memory-index.md, product.md, architecture.md, and a dated bootstrap log entry
     under docs/memory/
+  - a README.md in docs/plans/current/ and docs/plans/archive/
 
 If AGENTS.md or CLAUDE.md already exist, interactively offers to merge the memory
 rules in (append a '## Project memory' section to AGENTS.md; prepend '@AGENTS.md'
@@ -17,10 +18,14 @@ Usage:
     python3 bootstrap.py "<Project name>" "<One-line description>"
     python3 bootstrap.py --project /path/to/repo "<Project>" "<Description>"
     python3 bootstrap.py --upgrade --project /path/to/repo
+    python3 bootstrap.py --upgrade --force --project /path/to/repo
 
 If --project is omitted, the current working directory is used. With --upgrade,
-the AGENTS.md marker block is replaced with the current template's contents;
-content outside the markers is preserved.
+the AGENTS.md marker block is replaced with the current template's contents,
+content outside the markers is preserved, and any missing docs/plans/
+directories are created. An upgrade refuses to run when the marker block holds
+sections the template does not have, since replacing it would delete them;
+--force overrides that.
 """
 
 import argparse
@@ -28,12 +33,14 @@ import datetime
 import difflib
 import os
 import pathlib
+import re
 import string
 import subprocess
 import sys
 
 START_MARKER = "<!-- project-memory:start -->"
 END_MARKER = "<!-- project-memory:end -->"
+PLANS_SUBDIRS = ("current", "archive")
 
 
 def git_user_name(cwd: pathlib.Path) -> str:
@@ -109,10 +116,30 @@ def load_template(
     return string.Template(read_text(path)).substitute(**substitutions)
 
 
+def blocking_non_directory(path: pathlib.Path) -> pathlib.Path | None:
+    """The nearest existing ancestor of path that is not a directory, if any."""
+    for candidate in (path, *path.parents):
+        if candidate.is_symlink() or candidate.exists():
+            return None if candidate.is_dir() else candidate
+    return None
+
+
+def ensure_directory(path: pathlib.Path) -> None:
+    """Create a directory, exiting with a readable message if a file is in the way."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except (FileExistsError, NotADirectoryError):
+        blocker = blocking_non_directory(path) or path
+        sys.exit(
+            f"cannot create directory {path}: {blocker} exists and is not a "
+            f"directory. Move or remove it, then re-run."
+        )
+
+
 def write_file(path: pathlib.Path, content: str) -> None:
     if path.exists():
         sys.exit(f"refusing to overwrite existing file: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_directory(path.parent)
     write_text(path, content)
     print(f"wrote {path}")
 
@@ -124,6 +151,49 @@ def extract_memory_block(content: str, source_label: str) -> str:
     if start < 0 or end < 0 or end < start:
         sys.exit(f"{source_label} missing '{START_MARKER}' / '{END_MARKER}' markers")
     return content[start : end + len(END_MARKER)]
+
+
+ATX_HEADING = re.compile(r"#{1,6}\s+\S")
+RULE_LEAD_IN = re.compile(r"\*\*(.+?)\*\*")
+
+
+def block_sections(block: str) -> list[str]:
+    """Return the section markers in a marker block, ignoring fenced code.
+
+    Markers are ATX headings and the bold label that opens each template rule.
+    Only the label is returned for a lead-in, so reworded prose after it is not a
+    new section. Setext headings are not recognized.
+    """
+    sections = []
+    in_fence = False
+    for line in block.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if ATX_HEADING.match(stripped):
+            sections.append(stripped)
+            continue
+        lead_in = RULE_LEAD_IN.match(stripped)
+        if lead_in:
+            sections.append(f"**{lead_in.group(1)}**")
+    return sections
+
+
+def custom_sections(current_block: str, template_block: str) -> list[str]:
+    """Section markers in the project's marker block that the template lacks.
+
+    These are sections a user added inside the markers, which an upgrade would
+    silently delete. Reworded template prose is not flagged, only new sections.
+    """
+    known = set(block_sections(template_block))
+    found = []
+    for section in block_sections(current_block):
+        if section not in known and section not in found:
+            found.append(section)
+    return found
 
 
 def merge_agents_md(path: pathlib.Path, full_content: str) -> None:
@@ -155,8 +225,15 @@ def merge_agents_md(path: pathlib.Path, full_content: str) -> None:
     print(f"appended memory section to {path}")
 
 
-def upgrade_agents_md(project_root: pathlib.Path, templates_dir: pathlib.Path) -> None:
-    """Replace the marker block in project AGENTS.md with the template's contents."""
+def upgrade_agents_md(
+    project_root: pathlib.Path, templates_dir: pathlib.Path, force: bool = False
+) -> bool:
+    """Replace the marker block in project AGENTS.md with the template's contents.
+
+    Exits non-zero if the block holds sections the template does not have, unless
+    force is set. Returns True when the block is current afterwards, False when
+    the user declined.
+    """
     project_agents = project_root / "AGENTS.md"
     if not project_agents.is_file():
         sys.exit(
@@ -173,7 +250,18 @@ def upgrade_agents_md(project_root: pathlib.Path, templates_dir: pathlib.Path) -
 
     if current_block == new_block:
         print(f"AGENTS.md is already current ({project_agents})")
-        return
+        return True
+
+    custom = custom_sections(current_block, new_block)
+    if custom and not force:
+        sections = "\n".join(f"  {section}" for section in custom)
+        sys.exit(
+            f"refusing to upgrade {project_agents}: the marker block holds "
+            f"sections the template does not have, and replacing the block "
+            f"would delete them:\n\n{sections}\n\n"
+            f"Move them below '{END_MARKER}' - content outside the markers is "
+            f"preserved - then re-run. Pass --force to replace the block anyway."
+        )
 
     diff = "".join(
         difflib.unified_diff(
@@ -186,9 +274,40 @@ def upgrade_agents_md(project_root: pathlib.Path, templates_dir: pathlib.Path) -
     print(colorize_diff(diff), end="")
     if not confirm(f"\nReplace marker block in {project_agents}? [y/N]: "):
         print("aborted")
-        return
+        return False
     write_text(project_agents, existing.replace(current_block, new_block, 1))
     print(f"updated {project_agents}")
+    return True
+
+
+def load_plans_readmes(templates_dir: pathlib.Path) -> dict[pathlib.Path, str]:
+    """Render the docs/plans READMEs, keyed by path relative to the project root."""
+    return {
+        pathlib.Path("docs/plans") / subdir / "README.md": load_template(
+            templates_dir, f"plans-{subdir}-readme.md"
+        )
+        for subdir in PLANS_SUBDIRS
+    }
+
+
+def write_plans_readmes(
+    project_root: pathlib.Path, readmes: dict[pathlib.Path, str]
+) -> None:
+    """Write the docs/plans READMEs, creating parent directories as needed.
+
+    Idempotent: an existing README is left untouched rather than treated as a
+    conflict, so --upgrade can add the layout to an already-bootstrapped repo.
+    """
+    for relpath, content in readmes.items():
+        target = project_root / relpath
+        if target.is_file():
+            print(f"skipped {target} (already exists)")
+            continue
+        if target.exists():
+            sys.exit(f"not a regular file, refusing to continue: {target}")
+        ensure_directory(target.parent)
+        write_text(target, content)
+        print(f"wrote {target}")
 
 
 def merge_claude_md(path: pathlib.Path, full_content: str) -> None:
@@ -244,9 +363,17 @@ def main() -> None:
     ap.add_argument(
         "--upgrade",
         action="store_true",
-        help="Re-sync the AGENTS.md marker block to the current template",
+        help="Re-sync the AGENTS.md marker block to the current template and create any missing docs/plans directories",
+    )
+    ap.add_argument(
+        "--force",
+        action="store_true",
+        help="With --upgrade, replace the marker block even when it holds sections the template does not have",
     )
     args = ap.parse_args()
+
+    if args.force and not args.upgrade:
+        ap.error("--force is only valid with --upgrade")
 
     project_root = pathlib.Path(args.project).resolve()
     if not project_root.is_dir():
@@ -261,7 +388,9 @@ def main() -> None:
         sys.exit(f"templates directory does not exist: {templates_dir}")
 
     if args.upgrade:
-        upgrade_agents_md(project_root, templates_dir)
+        plans_readmes = load_plans_readmes(templates_dir)
+        if upgrade_agents_md(project_root, templates_dir, force=args.force):
+            write_plans_readmes(project_root, plans_readmes)
         return
 
     if not args.name or not args.description:
@@ -295,6 +424,7 @@ def main() -> None:
     bootstrap_log = load_template(
         templates_dir, "bootstrap-log.md", author=author, today=today
     )
+    plans_readmes = load_plans_readmes(templates_dir)
 
     memory_files = {
         pathlib.Path("docs/memory/memory-index.md"): memory_index,
@@ -310,6 +440,17 @@ def main() -> None:
         if target.exists():
             sys.exit(f"refusing to overwrite existing file: {target}")
 
+    for relpath in (*memory_files, *plans_readmes):
+        target = project_root / relpath
+        blocker = blocking_non_directory(target.parent)
+        if blocker is not None:
+            sys.exit(
+                f"cannot create directory {target.parent}: {blocker} exists and "
+                f"is not a directory. Move or remove it, then re-run."
+            )
+        if target.exists() and not target.is_file():
+            sys.exit(f"not a regular file, refusing to continue: {target}")
+
     # Root files: create new, or interactively offer to merge into existing.
     merge_agents_md(project_root / "AGENTS.md", agents_md)
     merge_claude_md(project_root / "CLAUDE.md", claude_md)
@@ -317,6 +458,8 @@ def main() -> None:
     # Memory files: write fresh (pre-flight guaranteed no conflicts).
     for relpath, content in memory_files.items():
         write_file(project_root / relpath, content)
+
+    write_plans_readmes(project_root, plans_readmes)
 
     print()
     print(f"Done. Bootstrapped memory system in {project_root}")

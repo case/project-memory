@@ -11,6 +11,8 @@ Agents: consult before suggesting layout, naming, dependencies, vendors, or conv
 
 ## Log (newest first)
 
+- [2026-08-23 --upgrade refuses to delete custom marker-block sections](log/2026-08-23-marker-block-guard.md) - an upgrade aborts and names any heading inside the markers that the template lacks; `--force` overrides
+- [2026-08-23 Plan files split into current/ and archive/](log/2026-08-23-plans-current-archive.md) - plans live in `docs/plans/current/` and move to `docs/plans/archive/` when done; bootstrap and `--upgrade` create both
 - [2026-07-07 Pinned dev toolchain via uv](log/2026-07-07-uv-toolchain.md) - linters pinned in `pyproject.toml` + `uv.lock`, run via `uv`, Dependabot-managed with a 14-day cooldown
 - [2026-07-06 Markdown linting via PyMarkdown](log/2026-07-06-markdown-lint.md) - pure-Python linter (no Node); config in `pyproject.toml`, front-matter extension required
 - [2026-05-13 --upgrade flag for bootstrap.py](log/2026-05-13-upgrade-flag.md) - re-syncs the AGENTS.md marker block to the current template; content outside the markers is preserved

@@ -16,15 +16,24 @@ After bootstrapping, your project will have these additions:
     architecture.md          # Current implementation overview
     log/
       yyyy-mm-dd-<slug>.md   # Dated events / decisions / incidents / etc.
+  plans/
+    current/
+      README.md              # Plans whose work is not finished yet
+    archive/
+      README.md              # Plans whose work is done
 ```
 
 Core files (`product.md`, `architecture.md`) plus a dated `log/` subdir. Add more core files (e.g. `codebase.md`, `conventions.md`, etc.) only when an existing file exceeds ~50 lines, or starts evolving on a separate cadence.
+
+Plan documents live in `docs/plans/`. A plan starts in `current/` and moves to `archive/` when its work is done.
 
 ## Why this shape?
 
 **Two core files** - `product.md` is the durable layer (which survives a code rewrite or systems migration), and `architecture.md` is the current implementation (which a rewrite would replace). That durability split is the load-bearing distinction. Splitting further (`codebase.md`, `conventions.md`, etc.) is deferred until a file outgrows itself.
 
 **`AGENTS.md` as canonical** - `AGENTS.md` is the [open standard](https://agents.md) read by almost all coding agents. Claude Code only reads `CLAUDE.md` natively, so a one-line `@AGENTS.md` import is the [Anthropic-recommended workaround](https://code.claude.com/docs/en/memory#agentsmd). This keeps the project portable across agents.
+
+**Plans split by state** - a plan's status is its location. `current/` versus `archive/` answers "what is still open" from a directory listing, with no field to parse and no file to open.
 
 **`memory-index.md`** - An agent reads one cheap file to discover what's in memory, then fetches specific entries on demand. Without an index, agents either guess or blanket-load, both of which are expensive.
 
@@ -57,9 +66,11 @@ python3 /path/to/project-memory/init/bootstrap.py "<project name>" "<project des
 
 The script safely renders the templates into the target project, with metadata populated (project name, dates, author from `git config user.name` in the target repo) and `<placeholder>` strings left for you to fill in. If `AGENTS.md` or `CLAUDE.md` already exist, it offers to merge in the memory rules. It will not overwrite anything under `docs/memory/`. Safe to re-run after partial setup.
 
+It also creates `docs/plans/current/` and `docs/plans/archive/`, each holding a `README.md`. Plans start in `current/` and move to `archive/` when done, so `current/` lists only open work. Existing READMEs there are left alone.
+
 After bootstrapping, fill in `<placeholder>` strings in `docs/memory/product.md` and `docs/memory/architecture.md`
 
-### Option B - Create the six files manually
+### Option B - Create the files manually
 
 Open each file in [`init/templates/`](init/templates/) (see [Bootstrap files](#bootstrap-files) below for the mapping), copy their contents into the target project at the corresponding path, and substitute the `${var}` placeholders by hand. Useful if you want to understand what the script does, or if Python isn't handy.
 
@@ -75,14 +86,16 @@ A capable agent should handle this end-to-end, and usually populate `architectur
 
 The bootstrap script (Option A) renders these template files into the target project. To change what gets generated, edit the template source files directly - they're the single source of truth.
 
-| Bootstrap target                            | Template source                                                      | Substitutions                       |
-|---------------------------------------------|----------------------------------------------------------------------|-------------------------------------|
-| `AGENTS.md`                                 | [`init/templates/AGENTS.md`](init/templates/AGENTS.md)               | `${name}`, `${desc}`                |
-| `CLAUDE.md`                                 | [`init/templates/CLAUDE.md`](init/templates/CLAUDE.md)               | none                                |
-| `docs/memory/memory-index.md`               | [`init/templates/memory-index.md`](init/templates/memory-index.md)   | `${name}`, `${today}`               |
-| `docs/memory/product.md`                    | [`init/templates/product.md`](init/templates/product.md)             | `${desc}`, `${author}`, `${today}`  |
-| `docs/memory/architecture.md`               | [`init/templates/architecture.md`](init/templates/architecture.md)   | `${name}`, `${author}`, `${today}`  |
-| `docs/memory/log/<yyyy-mm-dd>-bootstrap.md` | [`init/templates/bootstrap-log.md`](init/templates/bootstrap-log.md) | `${author}`, `${today}`             |
+| Bootstrap target                            | Template source                                                                    | Substitutions                      |
+|---------------------------------------------|------------------------------------------------------------------------------------|------------------------------------|
+| `AGENTS.md`                                 | [`init/templates/AGENTS.md`](init/templates/AGENTS.md)                             | `${name}`, `${desc}`               |
+| `CLAUDE.md`                                 | [`init/templates/CLAUDE.md`](init/templates/CLAUDE.md)                             | none                               |
+| `docs/memory/memory-index.md`               | [`init/templates/memory-index.md`](init/templates/memory-index.md)                 | `${name}`, `${today}`              |
+| `docs/memory/product.md`                    | [`init/templates/product.md`](init/templates/product.md)                           | `${desc}`, `${author}`, `${today}` |
+| `docs/memory/architecture.md`               | [`init/templates/architecture.md`](init/templates/architecture.md)                 | `${name}`, `${author}`, `${today}` |
+| `docs/memory/log/<yyyy-mm-dd>-bootstrap.md` | [`init/templates/bootstrap-log.md`](init/templates/bootstrap-log.md)               | `${author}`, `${today}`            |
+| `docs/plans/current/README.md`              | [`init/templates/plans-current-readme.md`](init/templates/plans-current-readme.md) | none                               |
+| `docs/plans/archive/README.md`              | [`init/templates/plans-archive-readme.md`](init/templates/plans-archive-readme.md) | none                               |
 
 The script substitutes `${var}` placeholders using Python's `string.Template`. Other placeholder syntax (e.g. `<...>` markers) is left as-is for the user to fill in after bootstrap.
 
@@ -96,7 +109,17 @@ To pick up changes to the memory rules in an already-bootstrapped project, re-ru
 python3 /path/to/project-memory/init/bootstrap.py --upgrade --project /path/to/your/project
 ```
 
-The script locates the `<!-- project-memory:start -->` ... `<!-- project-memory:end -->` block in your `AGENTS.md`, diffs it against the current template, and prompts before replacing. Content outside the markers is preserved. If your block already matches, the script exits with "already current."
+The script locates the `<!-- project-memory:start -->` ... `<!-- project-memory:end -->` block in your `AGENTS.md`, diffs it against the current template, and prompts before replacing. Content outside the markers is preserved. If your block already matches, the script prints "already current."
+
+Either way it then creates any missing `docs/plans/` directories, so a project bootstrapped before that layout existed picks it up. Declining the diff skips this and changes nothing.
+
+If your marker block contains sections the template does not have - a heading you added inside the markers - the upgrade refuses to run and names them, because replacing the block would delete them. Move those sections below `<!-- project-memory:end -->` and re-run; content outside the markers is preserved. `--force` replaces the block anyway, and still prompts before writing.
+
+```
+python3 /path/to/project-memory/init/bootstrap.py --upgrade --force --project /path/to/your/project
+```
+
+Reworded template prose is not mistaken for your own content: the check compares section markers (headings and the bold label opening each rule), not lines. Content you add *under* an existing marker is still replaced.
 
 The block between the markers is system-owned. Don't hand-edit it; add custom rules outside the markers instead.
 

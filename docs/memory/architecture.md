@@ -47,7 +47,7 @@ Simple and min-viable. No runtime dependencies; the linters are pinned dev tools
 - Ruff for lint/format with `target-version = "py310"`; rules: E, F, I, B, UP, SIM; E501 ignored (formatter handles it)
 - Shellcheck (via the `shellcheck-py` wrapper) for `bin/*`
 - PyMarkdown for Markdown, config in `[tool.pymarkdown]` (front-matter extension on)
-- Tests via `python3 -m unittest`
-- Git hooks in `.githooks/` wired via `core.hooksPath`: `pre-commit` → `bin/lint`, `pre-push` → `bin/test`
+- Tests via `python3 -m unittest`; `bin/test` runs `bin/lint` first and stops if it fails
+- Git hooks in `.githooks/` wired via `core.hooksPath`: `pre-commit` → `bin/lint`, `pre-push` → `bin/test` (so lint runs at both gates)
 - CI on the `ubuntu-slim` runner, Python 3 is preinstalled
 - Dependabot monthly for GitHub Actions and the `uv` dev-tool group, with a 14-day cooldown
