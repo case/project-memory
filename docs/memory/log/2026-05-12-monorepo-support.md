@@ -16,7 +16,7 @@ Clarified that monorepos are in scope and described the recommended layout. Trig
 - **`README.md`**: short "Monorepos" subsection between "Why this shape?" and "Getting started", linking to `product.md#monorepos` as the canonical reference.
 - **`AGENTS.md` and `init/templates/AGENTS.md`**: added a one-line "Monorepos" rule inside the `<!-- project-memory:start/end -->` markers, routing agents to subproject memory when working inside one.
 
-## Load-bearing decisions
+## Decisions
 
 - **Per-subproject `docs/memory/` over a flat directory with frontmatter scoping**. Considered a `scope: <subdir>` frontmatter field on entries in a single shared memory directory. Rejected: that reinvents directory structure with metadata, forces an index-and-filter step on every read, and breaks the "memory lives next to the code" convention. Locality wins for the common case (one subproject at a time).
 - **Generic wording in `product.md`, not concrete example trees**. First draft used `infra/signoz` / `infra/hostbox` from the originating homelab; rewrote to abstract "subproject" language because `product.md` is open-source-facing and shouldn't prescribe one user's layout as canonical.

@@ -8,7 +8,7 @@ tags: [log, decisions, conventions]
 
 # 2026-05-13: Entries are concise
 
-Recent entries were running long, especially "Load-bearing decisions" sections where each bullet became a mini-essay.
+Recent entries were running long, especially "Decisions" sections where each bullet became a mini-essay.
 
 ## What landed
 

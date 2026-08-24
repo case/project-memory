@@ -16,7 +16,7 @@ Constrained log filename slugs to 1-3 words after the date.
 - **Today's other draft entry**: saved as `2026-05-13-meta-entry-review.md` rather than the original 5-word slug.
 - **Older entries left alone**: existing slugs (`bootstrap`, `project-hygiene`, `monorepo-support`, `frontmatter-updated-optional`) are all within the 3-word limit. No retroactive renames.
 
-## Load-bearing decisions
+## Decisions
 
 - **1-3 words, not a hard cap of 3**. Some topics distill to one word (`bootstrap`); others need two or three. A floor and a ceiling beats a fixed count.
 - **Topic distillation, not a sentence**. If a slug needs a verb or a preposition, it's drifting toward a title. The H1 inside the file carries the full title; the slug is the index key.

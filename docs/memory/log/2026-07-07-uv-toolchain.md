@@ -19,7 +19,7 @@ Reversed the earlier "dev tools are environment-provided and unpinned" stance. T
 - **bin/setup**: runs `uv sync --locked` to install the pinned tools, and warns if `uv` is missing.
 - **Dependabot**: added a `uv` ecosystem entry; both `uv` and `github-actions` carry `cooldown` with `default-days: 14`.
 
-## Load-bearing decisions
+## Decisions
 
 - **uv over mise for these tools**: the tools are cross-language (Rust, Haskell, Python), so mise was the conceptually cleaner manager. But Dependabot has no `mise` ecosystem, and automated Dependabot-managed updates were the priority. Dependabot's `uv` ecosystem (GA March 2025) reads `pyproject.toml` and `uv.lock` natively. mise plus Renovate stays the alternative if we ever drop Dependabot.
 - **Exact pins, not ranges**: versions are visible in `pyproject.toml`, and exact pins avoid the dependabot-core behavior where a range constraint updates only `uv.lock` and leaves the manifest stale.

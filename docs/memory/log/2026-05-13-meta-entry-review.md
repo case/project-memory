@@ -14,7 +14,7 @@ Added a review gate for memory entries that change the memory system itself. Tri
 
 - **`AGENTS.md` and `init/templates/AGENTS.md`**: added an exception clause to the "When a new decision is made" rule, inside the `project-memory:start/end` markers. Meta-entries (changes to conventions, schema, naming, structure) require drafting the body inline and waiting for explicit go-ahead. Event entries follow the existing post-write diff-surface flow.
 
-## Load-bearing decisions
+## Decisions
 
 - **Single-rule-with-exception over two-separate-rules**. Keeps the AGENTS.md short and frames meta entries as a deviation from the default, which matches the actual frequency: most entries are event captures.
 - **"Draft the body inline" rather than "draft a summary"**. The full content goes in chat, not a paraphrase. Reviewing a summary and approving the file is a different (and weaker) check than reviewing the actual text.

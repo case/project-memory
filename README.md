@@ -29,7 +29,7 @@ Plan documents live in `docs/plans/`. A plan starts in `current/` and moves to `
 
 ## Why this shape?
 
-**Two core files** - `product.md` is the durable layer (which survives a code rewrite or systems migration), and `architecture.md` is the current implementation (which a rewrite would replace). That durability split is the load-bearing distinction. Splitting further (`codebase.md`, `conventions.md`, etc.) is deferred until a file outgrows itself.
+**Two core files** - `product.md` is the durable layer (which survives a code rewrite or systems migration), and `architecture.md` is the current implementation (which a rewrite would replace). That durability split is the essential distinction. Splitting further (`codebase.md`, `conventions.md`, etc.) is deferred until a file outgrows itself.
 
 **`AGENTS.md` as canonical** - `AGENTS.md` is the [open standard](https://agents.md) read by almost all coding agents. Claude Code only reads `CLAUDE.md` natively, so a one-line `@AGENTS.md` import is the [Anthropic-recommended workaround](https://code.claude.com/docs/en/memory#agentsmd). This keeps the project portable across agents.
 

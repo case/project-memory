@@ -17,7 +17,7 @@ Dropped the convention that every entry ships with `updated:` set equal to `crea
 - **Existing entries with `updated == created`** swept clean: `docs/memory/architecture.md`, both `2026-05-11-*.md` log entries, and today's `2026-05-12-monorepo-support.md`.
 - **`docs/memory/product.md`** kept its `updated:` because the value genuinely differs from `created` (bumped today for the monorepo section). This is the new field's intended use.
 
-## Load-bearing decisions
+## Decisions
 
 - **Optional, not removed**. The field still has a real job once an entry has been edited: it drives staleness review and signals that the body has changed since first publication. The only thing it didn't do well was carry that signal on day one.
 - **"Absent means same as `created`" spelled out in the schema**. Keeps tooling simple: `entry.updated or entry.created` is the canonical staleness key. Avoids a separate "is it stale?" decision tree for entries missing the field.

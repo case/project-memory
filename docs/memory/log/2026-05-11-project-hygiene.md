@@ -18,7 +18,7 @@ Added the standard "safe to clone, safe to contribute to" baseline to this repo.
 - **Dependabot**: `.github/dependabot.yml` checks `github-actions` weekly. No `pip` ecosystem entry; project is stdlib-only.
 - **Bootstrap hardening**: `merge_agents_md` slices the memory section between `<!-- project-memory:start -->` and `<!-- project-memory:end -->` markers, and all file I/O in `init/bootstrap.py` is centralized through `read_text` / `write_text` helpers that pin `encoding="utf-8"`.
 
-## Load-bearing decisions
+## Decisions
 
 - **In-repo `.githooks/` over a hook framework** (lefthook, pre-commit). The project's "stdlib-only Python, no install needed" framing extends to local tooling. A framework would add a dep just for two ten-line shell scripts. `core.hooksPath` is per-repo, opt-in, and discoverable from `bin/setup`. Trigger to revisit: cross-language hook fanout or staged-file filtering.
 - **HTML markers plus heading detection in `merge_agents_md`** (rather than slicing from `## Project memory` to EOF). Markers survive future template growth: added sections won't leak into the appended slice. Heading-text detection catches hand-added sections so a re-run won't duplicate. Both layers are cheap, and either alone has a failure mode.
