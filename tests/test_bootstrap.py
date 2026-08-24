@@ -6,6 +6,7 @@ Run from the repo root:
 
 import importlib.util
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -702,6 +703,47 @@ class TestUpgrade(unittest.TestCase):
             result = run_upgrade(tmpdir)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("markers", result.stderr)
+
+
+MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$", re.MULTILINE)
+
+
+def heading_slugs(text: str) -> set[str]:
+    """GitHub-style anchor slugs for every heading in a markdown document."""
+    slugs = set()
+    for heading in HEADING.findall(text):
+        slug = re.sub(r"[^\w\- ]", "", heading.replace("`", "").lower())
+        slugs.add(slug.strip().replace(" ", "-"))
+    return slugs
+
+
+class TestGeneratedLinks(unittest.TestCase):
+    """Every relative link in a bootstrapped project resolves, anchors included."""
+
+    def test_relative_links_and_anchors_resolve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            result = run_bootstrap(tmpdir)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+            checked = 0
+            for md in sorted(tmpdir.rglob("*.md")):
+                for target in MD_LINK.findall(md.read_text(encoding="utf-8")):
+                    if "://" in target or target.startswith(("#", "mailto:")):
+                        continue
+                    rel, _, anchor = target.partition("#")
+                    path = (md.parent / rel).resolve() if rel else md
+                    where = f"{md.relative_to(tmpdir)} -> {target}"
+                    self.assertTrue(path.exists(), msg=f"missing target: {where}")
+                    if anchor:
+                        self.assertIn(
+                            anchor,
+                            heading_slugs(path.read_text(encoding="utf-8")),
+                            msg=f"anchor not found: {where}",
+                        )
+                    checked += 1
+            self.assertGreater(checked, 0)
 
 
 if __name__ == "__main__":
