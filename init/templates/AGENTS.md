@@ -1,6 +1,6 @@
 # ${name}
 
-${desc} See [`docs/memory/product.md`](docs/memory/product.md) for what this is, [`docs/memory/architecture.md`](docs/memory/architecture.md) for how it's currently built.
+${desc_sentence} See [`docs/memory/product.md`](docs/memory/product.md) for what this is, [`docs/memory/architecture.md`](docs/memory/architecture.md) for how it's currently built.
 
 <!-- project-memory:start -->
 

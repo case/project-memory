@@ -86,18 +86,20 @@ A capable agent should handle this end-to-end, and usually populate `architectur
 
 The bootstrap script (Option A) renders these template files into the target project. To change what gets generated, edit the template source files directly - they're the single source of truth.
 
-| Bootstrap target                            | Template source                                                                    | Substitutions                      |
-|---------------------------------------------|------------------------------------------------------------------------------------|------------------------------------|
-| `AGENTS.md`                                 | [`init/templates/AGENTS.md`](init/templates/AGENTS.md)                             | `${name}`, `${desc}`               |
-| `CLAUDE.md`                                 | [`init/templates/CLAUDE.md`](init/templates/CLAUDE.md)                             | none                               |
-| `docs/memory/memory-index.md`               | [`init/templates/memory-index.md`](init/templates/memory-index.md)                 | `${name}`, `${today}`              |
-| `docs/memory/product.md`                    | [`init/templates/product.md`](init/templates/product.md)                           | `${desc}`, `${author}`, `${today}` |
-| `docs/memory/architecture.md`               | [`init/templates/architecture.md`](init/templates/architecture.md)                 | `${name}`, `${author}`, `${today}` |
-| `docs/memory/log/<yyyy-mm-dd>-bootstrap.md` | [`init/templates/bootstrap-log.md`](init/templates/bootstrap-log.md)               | `${author}`, `${today}`            |
-| `docs/plans/current/README.md`              | [`init/templates/plans-current-readme.md`](init/templates/plans-current-readme.md) | none                               |
-| `docs/plans/archive/README.md`              | [`init/templates/plans-archive-readme.md`](init/templates/plans-archive-readme.md) | none                               |
+| Bootstrap target                            | Template source                                                                    | Substitutions                                          |
+|---------------------------------------------|------------------------------------------------------------------------------------|--------------------------------------------------------|
+| `AGENTS.md`                                 | [`init/templates/AGENTS.md`](init/templates/AGENTS.md)                             | `${name}`, `${desc}`, `${desc_sentence}`               |
+| `CLAUDE.md`                                 | [`init/templates/CLAUDE.md`](init/templates/CLAUDE.md)                             | none                                                   |
+| `docs/memory/memory-index.md`               | [`init/templates/memory-index.md`](init/templates/memory-index.md)                 | `${name}`, `${today}`                                  |
+| `docs/memory/product.md`                    | [`init/templates/product.md`](init/templates/product.md)                           | `${desc}`, `${desc_sentence}`, `${author}`, `${today}` |
+| `docs/memory/architecture.md`               | [`init/templates/architecture.md`](init/templates/architecture.md)                 | `${name}`, `${author}`, `${today}`                     |
+| `docs/memory/log/<yyyy-mm-dd>-bootstrap.md` | [`init/templates/bootstrap-log.md`](init/templates/bootstrap-log.md)               | `${author}`, `${today}`                                |
+| `docs/plans/current/README.md`              | [`init/templates/plans-current-readme.md`](init/templates/plans-current-readme.md) | none                                                   |
+| `docs/plans/archive/README.md`              | [`init/templates/plans-archive-readme.md`](init/templates/plans-archive-readme.md) | none                                                   |
 
 The script substitutes `${var}` placeholders using Python's `string.Template`. Other placeholder syntax (e.g. `<...>` markers) is left as-is for the user to fill in after bootstrap.
+
+`${desc_sentence}` is the description with a trailing period added unless it already ends in `.`, `!` or `?`. Use it where prose follows the description.
 
 If a template ever needs a literal `$`, escape it as `$$` (a `string.Template` requirement).
 

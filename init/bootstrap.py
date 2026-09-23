@@ -106,6 +106,12 @@ def write_text(path: pathlib.Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def as_sentence(text: str) -> str:
+    """Return text with a trailing period unless it already ends in terminal punctuation."""
+    text = text.rstrip()
+    return text if text.endswith((".", "!", "?")) else f"{text}."
+
+
 def load_template(
     templates_dir: pathlib.Path, filename: str, **substitutions: str
 ) -> str:
@@ -401,7 +407,11 @@ def main() -> None:
 
     # Render all templates.
     agents_md = load_template(
-        templates_dir, "AGENTS.md", name=args.name, desc=args.description
+        templates_dir,
+        "AGENTS.md",
+        name=args.name,
+        desc=args.description,
+        desc_sentence=as_sentence(args.description),
     )
     claude_md = load_template(templates_dir, "CLAUDE.md")
     memory_index = load_template(
@@ -411,6 +421,7 @@ def main() -> None:
         templates_dir,
         "product.md",
         desc=args.description,
+        desc_sentence=as_sentence(args.description),
         author=author,
         today=today,
     )

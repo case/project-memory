@@ -8,7 +8,7 @@ tags: [product, scope, goals]
 
 # Product
 
-${desc}
+${desc_sentence}
 
 ## Why this exists
 

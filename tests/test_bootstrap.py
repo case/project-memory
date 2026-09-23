@@ -746,5 +746,47 @@ class TestGeneratedLinks(unittest.TestCase):
             self.assertGreater(checked, 0)
 
 
+class TestDescriptionSentence(unittest.TestCase):
+    """The description reads as a full sentence wherever prose follows or surrounds it."""
+
+    def bootstrap(self, desc: str) -> pathlib.Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = pathlib.Path(tmp.name)
+        result = run_bootstrap(tmpdir, desc=desc)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        return tmpdir
+
+    def test_agents_md_gets_a_period_before_the_see_sentence(self):
+        tmpdir = self.bootstrap("A tool for things")
+        agents = (tmpdir / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("A tool for things. See [", agents)
+
+    def test_existing_terminal_punctuation_is_not_doubled(self):
+        for desc in ("A tool for things.", "A tool for things!", "A tool?"):
+            with self.subTest(desc=desc):
+                agents = (self.bootstrap(desc) / "AGENTS.md").read_text(
+                    encoding="utf-8"
+                )
+                self.assertIn(f"{desc} See [", agents)
+
+    def test_product_body_is_a_sentence_but_summary_is_verbatim(self):
+        tmpdir = self.bootstrap("A tool for things")
+        product = (tmpdir / "docs/memory/product.md").read_text(encoding="utf-8")
+        self.assertIn("summary: A tool for things\n", product)
+        self.assertIn("\nA tool for things.\n", product)
+
+
+class TestBootstrapLogWording(unittest.TestCase):
+    def test_log_says_project_root_so_subprojects_read_correctly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = pathlib.Path(tmp)
+            self.assertEqual(run_bootstrap(tmpdir).returncode, 0)
+            (log,) = (tmpdir / "docs/memory/log").iterdir()
+            text = log.read_text(encoding="utf-8")
+            self.assertIn("at the project root", text)
+            self.assertNotIn("repo root", text)
+
+
 if __name__ == "__main__":
     unittest.main()
