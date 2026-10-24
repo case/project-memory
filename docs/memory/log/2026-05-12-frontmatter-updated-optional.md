@@ -21,7 +21,7 @@ Dropped the convention that every entry ships with `updated:` set equal to `crea
 
 - **Optional, not removed**. The field still has a real job once an entry has been edited: it drives staleness review and signals that the body has changed since first publication. The only thing it didn't do well was carry that signal on day one.
 - **"Absent means same as `created`" spelled out in the schema**. Keeps tooling simple: `entry.updated or entry.created` is the canonical staleness key. Avoids a separate "is it stale?" decision tree for entries missing the field.
-- **Schema uniformity preserved at the spec level, not the file level**. The README's anti-pattern entry says "keep the schema uniform across all entries so future tooling can rely on it." Marking `updated` optional with a documented default means the *spec* is still uniform, even though individual files vary in whether the field is present.
+- **Schema uniformity preserved at the spec level, not the file level**. The README's anti-pattern entry says "keep the schema uniform across all entries so future tooling can rely on it." Marking `updated` optional with a documented default means the _spec_ is still uniform, even though individual files vary in whether the field is present.
 - **Did not retroactively bump `updated` on the swept entries**. Removing a noise field is not a "meaningful edit" of the content. Treating it as one would defeat the purpose.
 
 ## Verified

@@ -8,9 +8,9 @@ package = false
 
 [dependency-groups]
 dev = [
-    "ruff==0.15.20",
-    "shellcheck-py==0.11.0.1",
-    "pymarkdownlnt==0.9.38",
+  "ruff==0.15.20",
+  "shellcheck-py==0.11.0.1",
+  "pymarkdownlnt==0.9.38",
 ]
 
 [tool.ruff]
@@ -18,12 +18,12 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "I",   # isort (import sorting)
-    "B",   # flake8-bugbear (likely bugs)
-    "UP",  # pyupgrade (modernize syntax for target-version)
-    "SIM", # flake8-simplify
+  "E", # pycodestyle errors
+  "F", # pyflakes
+  "I", # isort (import sorting)
+  "B", # flake8-bugbear (likely bugs)
+  "UP", # pyupgrade (modernize syntax for target-version)
+  "SIM", # flake8-simplify
 ]
 # E501 (line-too-long) is handled by `ruff format`
 ignore = ["E501"]

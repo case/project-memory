@@ -25,5 +25,13 @@ uv run --locked shellcheck bin/*
 echo "==> pymarkdown"
 uv run --locked pymarkdown --strict-config scan --respect-gitignore -r .
 
+# dprint is not pinned through uv, so it runs only where installed. CI skips it.
+if command -v dprint >/dev/null 2>&1; then
+    echo "==> dprint check"
+    dprint check
+else
+    echo "==> dprint check (skipped: dprint not installed)"
+fi
+
 echo
 echo "✅ Lint passed."

@@ -87,7 +87,7 @@ A capable agent should handle this end-to-end, and usually populate `architectur
 The bootstrap script (Option A) renders these template files into the target project. To change what gets generated, edit the template source files directly - they're the single source of truth.
 
 | Bootstrap target                            | Template source                                                                    | Substitutions                                          |
-|---------------------------------------------|------------------------------------------------------------------------------------|--------------------------------------------------------|
+| ------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `AGENTS.md`                                 | [`init/templates/AGENTS.md`](init/templates/AGENTS.md)                             | `${name}`, `${desc}`, `${desc_sentence}`               |
 | `CLAUDE.md`                                 | [`init/templates/CLAUDE.md`](init/templates/CLAUDE.md)                             | none                                                   |
 | `docs/memory/memory-index.md`               | [`init/templates/memory-index.md`](init/templates/memory-index.md)                 | `${name}`, `${today}`                                  |
@@ -121,7 +121,7 @@ If your marker block contains sections the template does not have - a heading yo
 python3 /path/to/project-memory/init/bootstrap.py --upgrade --force --project /path/to/your/project
 ```
 
-Reworded template prose is not mistaken for your own content: the check compares section markers (headings and the bold label opening each rule), not lines. Content you add *under* an existing marker is still replaced.
+Reworded template prose is not mistaken for your own content: the check compares section markers (headings and the bold label opening each rule), not lines. Content you add _under_ an existing marker is still replaced.
 
 The block between the markers is system-owned. Don't hand-edit it; add custom rules outside the markers instead.
 
@@ -129,16 +129,17 @@ The block between the markers is system-owned. Don't hand-edit it; add custom ru
 
 Every memory entry (core file or log file) starts with this frontmatter:
 
-| Field    | Type           | Purpose                                                                       | Example                                                                            |
-|----------|----------------|-------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| title    | string         | Human-readable name                                                           | `Adopted VictoriaMetrics for observability`                                        |
-| summary  | string ≤120ch  | Index hook - what an agent reads to decide if the entry is relevant           | `VM stack (logs+metrics+traces) on <hosting service>; rejected <other stack> for lack of maturity` |
-| created  | YYYY-MM-DD     | Immutable date of record                                                      | `2026-05-07`                                                                       |
-| updated  | YYYY-MM-DD     | Optional. Add on the first meaningful edit; bump on subsequent edits. Absent means same as `created`. Drives staleness review | `2026-05-08`                                                                       |
-| author   | string         | Originator. Immutable - credit, not ownership (git blame covers ongoing edits)| `<git user.name>`                                                                  |
-| tags     | `array<string>` | Freeform, kebab-case. For grep/filter                                         | `[log, decisions, observability]`                                                  |
+| Field   | Type            | Purpose                                                                                                                       | Example                                                                                            |
+| ------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| title   | string          | Human-readable name                                                                                                           | `Adopted VictoriaMetrics for observability`                                                        |
+| summary | string ≤120ch   | Index hook - what an agent reads to decide if the entry is relevant                                                           | `VM stack (logs+metrics+traces) on <hosting service>; rejected <other stack> for lack of maturity` |
+| created | YYYY-MM-DD      | Immutable date of record                                                                                                      | `2026-05-07`                                                                                       |
+| updated | YYYY-MM-DD      | Optional. Add on the first meaningful edit; bump on subsequent edits. Absent means same as `created`. Drives staleness review | `2026-05-08`                                                                                       |
+| author  | string          | Originator. Immutable - credit, not ownership (git blame covers ongoing edits)                                                | `<git user.name>`                                                                                  |
+| tags    | `array<string>` | Freeform, kebab-case. For grep/filter                                                                                         | `[log, decisions, observability]`                                                                  |
 
 Deliberately not included:
+
 - `status` (active/superseded/etc.) - if it's in memory it's true; if not, delete it and git remembers
 - `type` - filename pattern encodes core vs log (no date prefix vs `log/yyyy-mm-dd-*.md`)
 
@@ -148,7 +149,7 @@ Deliberately not included:
 - **Entries are concise** - Bigger than a commit message, smaller than a design doc. A handful of bullets, short rationales per decision. If a bullet needs a paragraph, the entry is probably bundling.
 - **One event per log file** - Multiple events on the same day = multiple files (`2026-05-08-layout-flatten.md`, `2026-05-08-dep-bump.md`). Don't append a second event onto an existing log file - keeps retrieval precise and titles meaningful.
 - **Log slugs stay short** (1-3 words) - The slug after the date is a topic distillation, not a sentence. If you need more, the entry is probably bundling decisions and should be split.
-- **Log entries are append-only** - If superseded, write a *new* log entry that links back; don't rewrite history. This shows the evolution of the discussion and decision-making process.
+- **Log entries are append-only** - If superseded, write a _new_ log entry that links back; don't rewrite history. This shows the evolution of the discussion and decision-making process.
 
 ## Anti-patterns
 
@@ -160,7 +161,7 @@ Deliberately not included:
 
 This system is inspired by, but deviates from:
 
-- **[Cline's Memory Bank](https://docs.cline.bot/features/memory-bank)** - established 6-file taxonomy in a `memory-bank/` directory, loaded via `.clinerules`. This system adopts the *pattern* (markdown files in a memory directory as the agent's persistent context), but uses two core files instead of six, adds an index file, adds a `log/` subdir for dated events, and adds frontmatter for queryability.
+- **[Cline's Memory Bank](https://docs.cline.bot/features/memory-bank)** - established 6-file taxonomy in a `memory-bank/` directory, loaded via `.clinerules`. This system adopts the _pattern_ (markdown files in a memory directory as the agent's persistent context), but uses two core files instead of six, adds an index file, adds a `log/` subdir for dated events, and adds frontmatter for queryability.
 - **[AGENTS.md](https://agents.md)** - open standard for the agent-facing instruction file. Not yet natively read by Claude Code - see the Claude Code memory docs link below.
 - **[Anthropic Claude Code memory docs](https://code.claude.com/docs/en/memory#agentsmd)** - documents the `@AGENTS.md` import workaround used in `CLAUDE.md` above. The native-AGENTS.md feature requests ([#6235](https://github.com/anthropics/claude-code/issues/6235), [#34235](https://github.com/anthropics/claude-code/issues/34235), [#31005](https://github.com/anthropics/claude-code/issues/31005)) remain open.
 
