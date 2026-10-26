@@ -8,11 +8,13 @@ to this script (override with --templates-dir). Renders them into:
   - memory-index.md, product.md, architecture.md, and a dated bootstrap log entry
     under docs/memory/
   - a README.md in docs/plans/current/ and docs/plans/archive/
+  - a .gitattributes rule giving memory-index.md git's union merge driver
 
-If AGENTS.md or CLAUDE.md already exist, interactively offers to merge the memory
-rules in (append a '## Project memory' section to AGENTS.md; prepend '@AGENTS.md'
-to CLAUDE.md). Refuses to overwrite any files under docs/memory/. Safe to re-run
-after partial setup.
+If AGENTS.md, CLAUDE.md or .gitattributes already exist, interactively offers to
+merge in (append a '## Project memory' section to AGENTS.md; prepend '@AGENTS.md'
+to CLAUDE.md; append the union rule to .gitattributes unless git already applies
+a merge attribute to the index). Refuses to overwrite any files under
+docs/memory/. Safe to re-run after partial setup.
 
 Usage:
     python3 bootstrap.py "<Project name>" "<One-line description>"
@@ -23,9 +25,9 @@ Usage:
 If --project is omitted, the current working directory is used. With --upgrade,
 the AGENTS.md marker block is replaced with the current template's contents,
 content outside the markers is preserved, and any missing docs/plans/
-directories are created. An upgrade refuses to run when the marker block holds
-sections the template does not have, since replacing it would delete them;
---force overrides that.
+directories and the .gitattributes rule are added. An upgrade refuses to run
+when the marker block holds sections the template does not have, since
+replacing it would delete them; --force overrides that.
 """
 
 import argparse
@@ -41,6 +43,8 @@ import sys
 START_MARKER = "<!-- project-memory:start -->"
 END_MARKER = "<!-- project-memory:end -->"
 PLANS_SUBDIRS = ("current", "archive")
+INDEX_PATH = "docs/memory/memory-index.md"
+UNION_RULE = f"{INDEX_PATH} merge=union"
 
 
 def git_user_name(cwd: pathlib.Path) -> str:
@@ -338,6 +342,95 @@ def merge_claude_md(path: pathlib.Path, full_content: str) -> None:
     print(f"prepended {import_line} to {path}")
 
 
+def check_gitattributes(project_root: pathlib.Path) -> None:
+    """Exit if .gitattributes is a symlink (dangling included) or not a regular file."""
+    path = project_root / ".gitattributes"
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        sys.exit(f"not a regular file, refusing to continue: {path}")
+
+
+def index_merge_attribute(project_root: pathlib.Path) -> str | None:
+    """The merge attribute git applies to the index, or None when git cannot say.
+
+    Returns git's own value: 'unspecified', 'set', 'unset', or a driver name.
+    Global attributes are excluded, since they do not travel with the repo.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-c",
+                f"core.attributesFile={os.devnull}",
+                "check-attr",
+                "-z",
+                "merge",
+                "--",
+                INDEX_PATH,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=project_root,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    # -z output is <path> NUL <attribute> NUL <value> NUL.
+    fields = result.stdout.split("\0")
+    return fields[2] if len(fields) >= 3 else None
+
+
+def has_union_rule(content: bytes) -> bool:
+    """True if a line is exactly UNION_RULE. Idempotence only; git decides precedence."""
+    text = content.decode("utf-8", errors="surrogateescape")
+    return any(line.split() == UNION_RULE.split() for line in text.splitlines())
+
+
+def merge_gitattributes(project_root: pathlib.Path) -> None:
+    """Create .gitattributes with UNION_RULE, or offer to append it to an existing one.
+
+    Leaves the file alone when git already applies a merge attribute to the
+    index, so an explicit choice in the repo is never overridden.
+    """
+    path = project_root / ".gitattributes"
+    existing = path.read_bytes() if path.exists() else None
+    current = index_merge_attribute(project_root)
+    if current == "union":
+        print(f"skipped {path} (union merge already applies to {INDEX_PATH})")
+        return
+    if current not in (None, "unspecified"):
+        print(
+            f"skipped {path} - git already applies 'merge: {current}' to "
+            f"{INDEX_PATH}; change it to merge=union by hand if you want that"
+        )
+        return
+    if existing is not None and has_union_rule(existing):
+        if current is None:
+            print(f"skipped {path} ({UNION_RULE} already present)")
+        else:
+            print(
+                f"skipped {path} - {UNION_RULE} is present but git reports "
+                f"'merge: unspecified' for {INDEX_PATH}, so another rule "
+                f"overrides it; fix that rule by hand if you want union merges"
+            )
+        return
+    if existing is None:
+        with path.open("xb") as f:
+            f.write(UNION_RULE.encode("utf-8") + b"\n")
+        print(f"wrote {path}")
+        return
+    if not confirm(f"{path} exists. Append '{UNION_RULE}'? [y/N]: "):
+        print(
+            f"skipped {path} - add '{UNION_RULE}' manually so concurrent log "
+            f"entries do not conflict"
+        )
+        return
+    eol = b"\r\n" if b"\r\n" in existing else b"\n"
+    separator = eol if existing and not existing.endswith(b"\n") else b""
+    with path.open("ab") as f:
+        f.write(separator + UNION_RULE.encode("utf-8") + eol)
+    print(f"appended {UNION_RULE} to {path}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Bootstrap a project memory system.",
@@ -369,7 +462,7 @@ def main() -> None:
     ap.add_argument(
         "--upgrade",
         action="store_true",
-        help="Re-sync the AGENTS.md marker block to the current template and create any missing docs/plans directories",
+        help="Re-sync the AGENTS.md marker block to the current template, create any missing docs/plans directories, and add the .gitattributes rule",
     )
     ap.add_argument(
         "--force",
@@ -393,10 +486,13 @@ def main() -> None:
     if not templates_dir.is_dir():
         sys.exit(f"templates directory does not exist: {templates_dir}")
 
+    check_gitattributes(project_root)
+
     if args.upgrade:
         plans_readmes = load_plans_readmes(templates_dir)
         if upgrade_agents_md(project_root, templates_dir, force=args.force):
             write_plans_readmes(project_root, plans_readmes)
+            merge_gitattributes(project_root)
         return
 
     if not args.name or not args.description:
@@ -465,6 +561,7 @@ def main() -> None:
     # Root files: create new, or interactively offer to merge into existing.
     merge_agents_md(project_root / "AGENTS.md", agents_md)
     merge_claude_md(project_root / "CLAUDE.md", claude_md)
+    merge_gitattributes(project_root)
 
     # Memory files: write fresh (pre-flight guaranteed no conflicts).
     for relpath, content in memory_files.items():

@@ -7,6 +7,7 @@ A lightweight, file-based memory system for small software projects. Just markdo
 After bootstrapping, your project will have these additions:
 
 ```
+/.gitattributes              # Union merge for memory-index.md; appended to if it already exists
 /AGENTS.md                   # Vendor-neutral entrypoint for any agent; updated if it already exists
 /CLAUDE.md                   # One-line `@AGENTS.md` import for Claude Code
 /docs/
@@ -36,6 +37,8 @@ Plan documents live in `docs/plans/`. A plan starts in `current/` and moves to `
 **Plans split by state** - a plan's status is its location. `current/` versus `archive/` answers "what is still open" from a directory listing, with no field to parse and no file to open.
 
 **`memory-index.md`** - An agent reads one cheap file to discover what's in memory, then fetches specific entries on demand. Without an index, agents either guess or blanket-load, both of which are expensive.
+
+**Union merge for the index** - Every branch adds its log line at the top of `memory-index.md`, so two branches that each add one would conflict. `docs/memory/memory-index.md merge=union` in `.gitattributes` tells git to [keep lines from both sides](https://git-scm.com/docs/gitattributes#_built_in_merge_drivers) instead.
 
 **Frontmatter is schema-like** - Every entry has the same fields. If memory ever migrates to a database (or a static-site search index, or anything queryable), the frontmatter fields become columns.
 
@@ -68,6 +71,8 @@ The script safely renders the templates into the target project, with metadata p
 
 It also creates `docs/plans/current/` and `docs/plans/archive/`, each holding a `README.md`. Plans start in `current/` and move to `archive/` when done, so `current/` lists only open work. Existing READMEs there are left alone.
 
+Finally it adds `docs/memory/memory-index.md merge=union` to `.gitattributes`, creating the file if needed and asking before appending to an existing one. It asks git which merge attribute already applies to the index: if it is already `union` nothing changes, and if the repo sets something else the script reports it and leaves the file alone.
+
 After bootstrapping, fill in `<placeholder>` strings in `docs/memory/product.md` and `docs/memory/architecture.md`
 
 ### Option B - Create the files manually
@@ -96,6 +101,7 @@ The bootstrap script (Option A) renders these template files into the target pro
 | `docs/memory/log/<yyyy-mm-dd>-bootstrap.md` | [`init/templates/bootstrap-log.md`](init/templates/bootstrap-log.md)               | `${author}`, `${today}`                                |
 | `docs/plans/current/README.md`              | [`init/templates/plans-current-readme.md`](init/templates/plans-current-readme.md) | none                                                   |
 | `docs/plans/archive/README.md`              | [`init/templates/plans-archive-readme.md`](init/templates/plans-archive-readme.md) | none                                                   |
+| `.gitattributes`                            | none; the script adds the line `docs/memory/memory-index.md merge=union`           | none                                                   |
 
 The script substitutes `${var}` placeholders using Python's `string.Template`. Other placeholder syntax (e.g. `<...>` markers) is left as-is for the user to fill in after bootstrap.
 
@@ -113,7 +119,7 @@ python3 /path/to/project-memory/init/bootstrap.py --upgrade --project /path/to/y
 
 The script locates the `<!-- project-memory:start -->` ... `<!-- project-memory:end -->` block in your `AGENTS.md`, diffs it against the current template, and prompts before replacing. Content outside the markers is preserved. If your block already matches, the script prints "already current."
 
-Either way it then creates any missing `docs/plans/` directories, so a project bootstrapped before that layout existed picks it up. Declining the diff skips this and changes nothing.
+Either way it then creates any missing `docs/plans/` directories and adds the `.gitattributes` union rule, so a project bootstrapped before either existed picks them up. Declining the diff skips this and changes nothing.
 
 If your marker block contains sections the template does not have - a heading you added inside the markers - the upgrade refuses to run and names them, because replacing the block would delete them. Move those sections below `<!-- project-memory:end -->` and re-run; content outside the markers is preserved. `--force` replaces the block anyway, and still prompts before writing.
 
