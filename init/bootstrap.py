@@ -44,7 +44,6 @@ START_MARKER = "<!-- project-memory:start -->"
 END_MARKER = "<!-- project-memory:end -->"
 PLANS_SUBDIRS = ("current", "archive")
 INDEX_PATH = "docs/memory/memory-index.md"
-UNION_RULE = f"{INDEX_PATH} merge=union"
 
 
 def git_user_name(cwd: pathlib.Path) -> str:
@@ -349,11 +348,38 @@ def check_gitattributes(project_root: pathlib.Path) -> None:
         sys.exit(f"not a regular file, refusing to continue: {path}")
 
 
-def index_merge_attribute(project_root: pathlib.Path) -> str | None:
+def index_path(project_root: pathlib.Path) -> str:
+    """INDEX_PATH as spelled on disk, since git on Linux matches attribute paths by exact case.
+
+    Each component prefers an exact match, then an ASCII case-insensitive one. Falls back to INDEX_PATH.
+    """
+    current = project_root
+    spelled = []
+    for part in INDEX_PATH.split("/"):
+        try:
+            names = sorted(os.listdir(current))
+        except OSError:
+            return INDEX_PATH
+        if part not in names:
+            matches = [n for n in names if n.isascii() and n.lower() == part]
+            if not matches:
+                return INDEX_PATH
+            part = matches[0]
+        spelled.append(part)
+        current = current / part
+    return "/".join(spelled)
+
+
+def union_rule(index: str) -> str:
+    return f"{index} merge=union"
+
+
+def index_merge_attribute(project_root: pathlib.Path, index: str) -> str | None:
     """The merge attribute git applies to the index, or None when git cannot say.
 
     Returns git's own value: 'unspecified', 'set', 'unset', or a driver name.
     Global attributes are excluded, since they do not travel with the repo.
+    Matching is case-sensitive, as on Linux, so a rule that only matches on macOS does not count.
     """
     try:
         result = subprocess.run(
@@ -361,11 +387,13 @@ def index_merge_attribute(project_root: pathlib.Path) -> str | None:
                 "git",
                 "-c",
                 f"core.attributesFile={os.devnull}",
+                "-c",
+                "core.ignorecase=false",
                 "check-attr",
                 "-z",
                 "merge",
                 "--",
-                INDEX_PATH,
+                index,
             ],
             capture_output=True,
             text=True,
@@ -379,56 +407,58 @@ def index_merge_attribute(project_root: pathlib.Path) -> str | None:
     return fields[2] if len(fields) >= 3 else None
 
 
-def has_union_rule(content: bytes) -> bool:
-    """True if a line is exactly UNION_RULE. Idempotence only; git decides precedence."""
+def has_union_rule(content: bytes, rule: str) -> bool:
+    """True if a line is exactly rule. Idempotence only; git decides precedence."""
     text = content.decode("utf-8", errors="surrogateescape")
-    return any(line.split() == UNION_RULE.split() for line in text.splitlines())
+    return any(line.split() == rule.split() for line in text.splitlines())
 
 
 def merge_gitattributes(project_root: pathlib.Path) -> None:
-    """Create .gitattributes with UNION_RULE, or offer to append it to an existing one.
+    """Create .gitattributes with the union rule, or offer to append it to an existing one.
 
     Leaves the file alone when git already applies a merge attribute to the
     index, so an explicit choice in the repo is never overridden.
     """
     path = project_root / ".gitattributes"
     existing = path.read_bytes() if path.exists() else None
-    current = index_merge_attribute(project_root)
+    index = index_path(project_root)
+    rule = union_rule(index)
+    current = index_merge_attribute(project_root, index)
     if current == "union":
-        print(f"skipped {path} (union merge already applies to {INDEX_PATH})")
+        print(f"skipped {path} (union merge already applies to {index})")
         return
     if current not in (None, "unspecified"):
         print(
             f"skipped {path} - git already applies 'merge: {current}' to "
-            f"{INDEX_PATH}; change it to merge=union by hand if you want that"
+            f"{index}; change it to merge=union by hand if you want that"
         )
         return
-    if existing is not None and has_union_rule(existing):
+    if existing is not None and has_union_rule(existing, rule):
         if current is None:
-            print(f"skipped {path} ({UNION_RULE} already present)")
+            print(f"skipped {path} ({rule} already present)")
         else:
             print(
-                f"skipped {path} - {UNION_RULE} is present but git reports "
-                f"'merge: unspecified' for {INDEX_PATH}, so another rule "
+                f"skipped {path} - {rule} is present but git reports "
+                f"'merge: unspecified' for {index}, so another rule "
                 f"overrides it; fix that rule by hand if you want union merges"
             )
         return
     if existing is None:
         with path.open("xb") as f:
-            f.write(UNION_RULE.encode("utf-8") + b"\n")
+            f.write(rule.encode("utf-8") + b"\n")
         print(f"wrote {path}")
         return
-    if not confirm(f"{path} exists. Append '{UNION_RULE}'? [y/N]: "):
+    if not confirm(f"{path} exists. Append '{rule}'? [y/N]: "):
         print(
-            f"skipped {path} - add '{UNION_RULE}' manually so concurrent log "
+            f"skipped {path} - add '{rule}' manually so concurrent log "
             f"entries do not conflict"
         )
         return
     eol = b"\r\n" if b"\r\n" in existing else b"\n"
     separator = eol if existing and not existing.endswith(b"\n") else b""
     with path.open("ab") as f:
-        f.write(separator + UNION_RULE.encode("utf-8") + eol)
-    print(f"appended {UNION_RULE} to {path}")
+        f.write(separator + rule.encode("utf-8") + eol)
+    print(f"appended {rule} to {path}")
 
 
 def main() -> None:

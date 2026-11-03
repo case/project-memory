@@ -737,6 +737,68 @@ class TestGitattributesMerge(unittest.TestCase):
             self.assertFalse((tmpdir / ".gitattributes").exists())
 
 
+class TestIndexPathCase(unittest.TestCase):
+    """The rule names the index as spelled on disk, since Linux git matches case exactly."""
+
+    CAPITAL_RULE = b"Docs/memory/memory-index.md merge=union"
+
+    def capitalised_repo(self) -> pathlib.Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = bootstrapped_git_repo(pathlib.Path(tmp.name))
+        # Two renames, because a case-only rename is a no-op on case-insensitive filesystems.
+        (tmpdir / "docs").rename(tmpdir / "docs-renaming")
+        (tmpdir / "docs-renaming").rename(tmpdir / "Docs")
+        return tmpdir
+
+    def merge_attribute(self, tmpdir: pathlib.Path) -> str:
+        check = git(
+            tmpdir,
+            "-c",
+            "core.ignorecase=false",
+            "check-attr",
+            "merge",
+            "--",
+            "Docs/memory/memory-index.md",
+        )
+        return check.stdout.rsplit(": ", 1)[-1].strip()
+
+    def test_new_gitattributes_uses_the_on_disk_spelling(self):
+        tmpdir = self.capitalised_repo()
+        result = run_upgrade(tmpdir)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        after = (tmpdir / ".gitattributes").read_bytes()
+        self.assertEqual(after, self.CAPITAL_RULE + b"\n")
+        self.assertEqual(self.merge_attribute(tmpdir), "union")
+
+    def test_lowercase_rule_that_only_matches_case_insensitively_gets_a_correct_one(
+        self,
+    ):
+        tmpdir = self.capitalised_repo()
+        (tmpdir / ".gitattributes").write_bytes(RULE + b"\n")
+        result = run_upgrade(tmpdir, input_text="y\n")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        after = (tmpdir / ".gitattributes").read_bytes()
+        self.assertEqual(after, RULE + b"\n" + self.CAPITAL_RULE + b"\n")
+        self.assertEqual(self.merge_attribute(tmpdir), "union")
+
+    def test_index_path_prefers_exact_then_ascii_case_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self.assertEqual(bootstrap.index_path(root), "docs/memory/memory-index.md")
+            (root / "Docs/Memory").mkdir(parents=True)
+            (root / "Docs/Memory/Memory-Index.md").write_bytes(b"")
+            self.assertEqual(bootstrap.index_path(root), "Docs/Memory/Memory-Index.md")
+
+    def test_index_path_ignores_non_ascii_case_folds(self):
+        """'ſ' casefolds to 's', but git's ignorecase never treats them as equal."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "docſ/memory").mkdir(parents=True)
+            (root / "docſ/memory/memory-index.md").write_bytes(b"")
+            self.assertEqual(bootstrap.index_path(root), "docs/memory/memory-index.md")
+
+
 class TestUnionMergeRebase(unittest.TestCase):
     """Two branches that each add a log line rebase cleanly only with the rule."""
 
