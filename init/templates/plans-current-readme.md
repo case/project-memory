@@ -2,4 +2,4 @@
 
 Plan documents for work that is not finished yet. One file per plan.
 
-When a plan's work is done, move the file to [`../archive/`](../archive/) so this directory lists only open work.
+When a plan's work is done, move the file to [`../${archive_name}/`](../${archive_name}/) so this directory lists only open work.

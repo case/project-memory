@@ -71,7 +71,7 @@ The script safely renders the templates into the target project, with metadata p
 
 It also creates `docs/plans/current/` and `docs/plans/archive/`, each holding a `README.md`. Plans start in `current/` and move to `archive/` when done, so `current/` lists only open work. Existing READMEs there are left alone.
 
-Finally it adds `docs/memory/memory-index.md merge=union` to `.gitattributes`, creating the file if needed and asking before appending to an existing one. The rule names the index as it is spelled on disk, so a repo with `Docs/` gets `Docs/memory/memory-index.md`. It asks git which merge attribute already applies to the index, matching case exactly as git on Linux does: if it is already `union` nothing changes, and if the repo sets something else the script reports it and leaves the file alone.
+Finally it adds `docs/memory/memory-index.md merge=union` to `.gitattributes`, creating the file if needed and asking before appending to an existing one. Every file the script writes, and this rule, follows the directory spelling already on disk, so a repo with `Docs/` gets `Docs/memory/`, `Docs/plans/` and a rule for `Docs/memory/memory-index.md`. It asks git which merge attribute already applies to the index, matching case exactly as git on Linux does: if it is already `union` nothing changes, and if the repo sets something else the script reports it and leaves the file alone.
 
 After bootstrapping, fill in `<placeholder>` strings in `docs/memory/product.md` and `docs/memory/architecture.md`
 

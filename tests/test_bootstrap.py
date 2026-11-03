@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 BOOTSTRAP_PY = REPO_ROOT / "init" / "bootstrap.py"
@@ -520,6 +521,7 @@ class TestDirectoryCollisions(unittest.TestCase):
 
 
 RULE = b"docs/memory/memory-index.md merge=union"
+INDEX = "docs/memory/memory-index.md"
 
 
 def bootstrapped_git_repo(tmpdir: pathlib.Path) -> pathlib.Path:
@@ -765,7 +767,7 @@ class TestIndexPathCase(unittest.TestCase):
 
     def test_new_gitattributes_uses_the_on_disk_spelling(self):
         tmpdir = self.capitalised_repo()
-        result = run_upgrade(tmpdir)
+        result = run_upgrade(tmpdir, input_text="y\n")
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         after = (tmpdir / ".gitattributes").read_bytes()
         self.assertEqual(after, self.CAPITAL_RULE + b"\n")
@@ -776,27 +778,148 @@ class TestIndexPathCase(unittest.TestCase):
     ):
         tmpdir = self.capitalised_repo()
         (tmpdir / ".gitattributes").write_bytes(RULE + b"\n")
-        result = run_upgrade(tmpdir, input_text="y\n")
+        result = run_upgrade(tmpdir, input_text="y\ny\n")
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         after = (tmpdir / ".gitattributes").read_bytes()
         self.assertEqual(after, RULE + b"\n" + self.CAPITAL_RULE + b"\n")
         self.assertEqual(self.merge_attribute(tmpdir), "union")
 
-    def test_index_path_prefers_exact_then_ascii_case_match(self):
+    def test_upgrade_writes_missing_plans_readme_into_existing_docs_spelling(self):
+        tmpdir = self.capitalised_repo()
+        (tmpdir / "Docs/plans/current/README.md").unlink()
+        result = run_upgrade(tmpdir, input_text="y\n")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn(
+            f"wrote {tmpdir.resolve() / 'Docs/plans/current/README.md'}\n",
+            result.stdout,
+        )
+        self.assertNotIn("docs", os.listdir(tmpdir))
+        self.assertEqual(self.merge_attribute(tmpdir), "union")
+
+    def test_second_upgrade_of_capitalised_repo_changes_nothing(self):
+        tmpdir = self.capitalised_repo()
+        self.assertEqual(run_upgrade(tmpdir, input_text="y\n").returncode, 0)
+        before = (tmpdir / ".gitattributes").read_bytes()
+        result = run_upgrade(tmpdir)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertNotIn("wrote", result.stdout)
+        self.assertIn(
+            f"skipped {tmpdir.resolve() / 'Docs/plans/archive/README.md'}",
+            result.stdout,
+        )
+        self.assertEqual((tmpdir / ".gitattributes").read_bytes(), before)
+        self.assertNotIn("docs", os.listdir(tmpdir))
+
+    def test_fresh_bootstrap_writes_into_an_existing_docs_spelling(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = pathlib.Path(tmp.name)
+        git(tmpdir, "init", "-q", "-b", "main")
+        (tmpdir / "Docs").mkdir()
+        result = run_bootstrap(tmpdir)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertNotIn("docs", os.listdir(tmpdir))
+        self.assertEqual(sorted(os.listdir(tmpdir / "Docs")), ["memory", "plans"])
+        self.assertIn("memory-index.md", os.listdir(tmpdir / "Docs/memory"))
+        after = (tmpdir / ".gitattributes").read_bytes()
+        self.assertEqual(after, self.CAPITAL_RULE + b"\n")
+        self.assertEqual(self.merge_attribute(tmpdir), "union")
+
+    def test_fresh_bootstrap_refuses_an_index_under_another_spelling(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = pathlib.Path(tmp.name)
+        (tmpdir / "Docs/memory").mkdir(parents=True)
+        (tmpdir / "Docs/memory/memory-index.md").write_bytes(b"keep")
+        result = run_bootstrap(tmpdir)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing to overwrite existing file", result.stderr)
+        self.assertEqual((tmpdir / "Docs/memory/memory-index.md").read_bytes(), b"keep")
+        self.assertEqual(os.listdir(tmpdir), ["Docs"])
+
+
+FAKE_ROOT = pathlib.Path("/fake")
+
+
+def fake_tree(tree: dict[str, list[str]]):
+    """Patch os.listdir in bootstrap with a tree keyed by directory under FAKE_ROOT, '' being the root."""
+
+    def listdir(path: os.PathLike) -> list[str]:
+        key = pathlib.PurePath(path).relative_to(FAKE_ROOT).as_posix()
+        key = "" if key == "." else key
+        if key not in tree:
+            raise FileNotFoundError(path)
+        return list(tree[key])
+
+    return mock.patch.object(bootstrap.os, "listdir", listdir)
+
+
+def rename_case(path: pathlib.Path, name: str) -> pathlib.Path:
+    """Rename in two steps, since a case-only rename is a no-op on case-insensitive filesystems."""
+    staging = path.with_name(path.name + "-renaming")
+    path.rename(staging)
+    return staging.rename(path.with_name(name))
+
+
+class TestOnDiskPath(unittest.TestCase):
+    """on_disk_path() spells each existing component as the directory listing does."""
+
+    def resolve(self, tree: dict[str, list[str]], relpath: str) -> str:
+        with fake_tree(tree):
+            return bootstrap.on_disk_path(FAKE_ROOT, relpath)
+
+    def test_nothing_on_disk_keeps_the_given_spelling(self):
+        self.assertEqual(self.resolve({"": []}, INDEX), INDEX)
+
+    def test_existing_prefix_is_kept_and_the_rest_appended(self):
+        self.assertEqual(
+            self.resolve({"": ["Docs"], "Docs": []}, INDEX),
+            "Docs/memory/memory-index.md",
+        )
+
+    def test_branch_reaching_the_file_beats_a_shallower_exact_match(self):
+        tree = {
+            "": ["Docs", "docs"],
+            "Docs": ["memory", "plans"],
+            "Docs/memory": ["memory-index.md"],
+            "docs": ["plans"],
+        }
+        self.assertEqual(self.resolve(tree, INDEX), "Docs/memory/memory-index.md")
+
+    def test_exact_match_wins_a_tie(self):
+        tree = {
+            "": ["Docs", "docs"],
+            "Docs": ["memory"],
+            "docs": ["memory"],
+            "Docs/memory": ["memory-index.md"],
+            "docs/memory": ["memory-index.md"],
+        }
+        self.assertEqual(self.resolve(tree, INDEX), INDEX)
+
+    def test_ascii_tie_is_broken_by_sorted_name(self):
+        tree = {"": ["Docs", "DOCS"], "Docs": [], "DOCS": []}
+        self.assertEqual(self.resolve(tree, INDEX), "DOCS/memory/memory-index.md")
+
+    def test_directory_beats_a_file_matching_the_same_component(self):
+        tree = {"": ["DOCS", "Docs"], "Docs": []}
+        self.assertEqual(self.resolve(tree, INDEX), "Docs/memory/memory-index.md")
+
+    def test_real_filesystem_ascii_case_match(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            self.assertEqual(bootstrap.index_path(root), "docs/memory/memory-index.md")
             (root / "Docs/Memory").mkdir(parents=True)
             (root / "Docs/Memory/Memory-Index.md").write_bytes(b"")
-            self.assertEqual(bootstrap.index_path(root), "Docs/Memory/Memory-Index.md")
+            self.assertEqual(
+                bootstrap.on_disk_path(root, INDEX), "Docs/Memory/Memory-Index.md"
+            )
 
-    def test_index_path_ignores_non_ascii_case_folds(self):
+    def test_non_ascii_case_folds_are_not_matches(self):
         """'ſ' casefolds to 's', but git's ignorecase never treats them as equal."""
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             (root / "docſ/memory").mkdir(parents=True)
             (root / "docſ/memory/memory-index.md").write_bytes(b"")
-            self.assertEqual(bootstrap.index_path(root), "docs/memory/memory-index.md")
+            self.assertEqual(bootstrap.on_disk_path(root, INDEX), INDEX)
 
 
 class TestUnionMergeRebase(unittest.TestCase):
@@ -1085,6 +1208,58 @@ class TestUpgrade(unittest.TestCase):
             self.assertIn("markers", result.stderr)
 
 
+class TestDocsLayout(unittest.TestCase):
+    """DocsLayout resolves every generated path under the directory the index resolved to."""
+
+    def test_split_tree_keeps_plans_beside_the_index(self):
+        tree = {
+            "": ["Docs", "docs"],
+            "Docs": ["memory", "plans"],
+            "Docs/memory": ["memory-index.md"],
+            "Docs/plans": [],
+            "docs": ["plans"],
+            "docs/plans": ["current"],
+            "docs/plans/current": ["README.md"],
+        }
+        with fake_tree(tree):
+            layout = bootstrap.DocsLayout.on_disk(FAKE_ROOT)
+        self.assertEqual(str(layout.index), "Docs/memory/memory-index.md")
+        self.assertEqual(str(layout.plans_current), "Docs/plans/current")
+        self.assertEqual(str(layout.plans_archive), "Docs/plans/archive")
+
+    def test_every_component_keeps_its_own_spelling(self):
+        tree = {
+            "": ["Docs"],
+            "Docs": ["Memory", "Plans"],
+            "Docs/Memory": ["Memory-Index.md", "Product.md", "Log"],
+            "Docs/Memory/Log": [],
+            "Docs/Plans": ["Current"],
+            "Docs/Plans/Current": [],
+        }
+        with fake_tree(tree):
+            layout = bootstrap.DocsLayout.on_disk(FAKE_ROOT)
+        self.assertEqual(
+            layout.template_vars(),
+            {
+                "memory_dir": "Docs/Memory",
+                "index_path": "Docs/Memory/Memory-Index.md",
+                "product_path": "Docs/Memory/Product.md",
+                "architecture_path": "Docs/Memory/architecture.md",
+                "log_name": "Log",
+                "plans_current": "Docs/Plans/Current",
+                "plans_archive": "Docs/Plans/archive",
+                "current_name": "Current",
+                "archive_name": "archive",
+            },
+        )
+
+    def test_nothing_on_disk_gives_the_default_layout(self):
+        with fake_tree({"": []}):
+            layout = bootstrap.DocsLayout.on_disk(FAKE_ROOT)
+        self.assertEqual(layout.template_vars()["index_path"], INDEX)
+        self.assertEqual(layout.template_vars()["plans_archive"], "docs/plans/archive")
+
+
 MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$", re.MULTILINE)
 
@@ -1098,32 +1273,111 @@ def heading_slugs(text: str) -> set[str]:
     return slugs
 
 
+def exists_with_exact_case(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """True if path exists under root with every component spelled as listed, as Linux requires."""
+    current = root
+    for part in path.relative_to(root).parts:
+        if not current.is_dir() or part not in os.listdir(current):
+            return False
+        current = current / part
+    return True
+
+
 class TestGeneratedLinks(unittest.TestCase):
-    """Every relative link in a bootstrapped project resolves, anchors included."""
+    """Every relative link in a bootstrapped project resolves, anchors and case included."""
+
+    def assert_links_resolve(
+        self, root: pathlib.Path, documents: dict[pathlib.Path, str]
+    ) -> None:
+        checked = 0
+        for md, text in documents.items():
+            for target in MD_LINK.findall(text):
+                if "://" in target or target.startswith(("#", "mailto:")):
+                    continue
+                rel, _, anchor = target.partition("#")
+                path = pathlib.Path(os.path.normpath(md.parent / rel)) if rel else md
+                where = f"{md.relative_to(root)} -> {target}"
+                self.assertTrue(
+                    exists_with_exact_case(root, path), msg=f"missing target: {where}"
+                )
+                if anchor:
+                    self.assertIn(
+                        anchor,
+                        heading_slugs(path.read_text(encoding="utf-8")),
+                        msg=f"anchor not found: {where}",
+                    )
+                checked += 1
+        self.assertGreater(checked, 0)
+
+    def bootstrapped(self, make_docs_dir: bool) -> pathlib.Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = pathlib.Path(tmp.name)
+        if make_docs_dir:
+            (tmpdir / "Docs").mkdir()
+        result = run_bootstrap(tmpdir)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        return tmpdir
+
+    def all_documents(self, root: pathlib.Path) -> dict[pathlib.Path, str]:
+        return {md: md.read_text(encoding="utf-8") for md in sorted(root.rglob("*.md"))}
 
     def test_relative_links_and_anchors_resolve(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmpdir = pathlib.Path(tmp)
-            result = run_bootstrap(tmpdir)
-            self.assertEqual(result.returncode, 0, msg=result.stderr)
+        tmpdir = self.bootstrapped(make_docs_dir=False)
+        self.assertIn("docs", os.listdir(tmpdir))
+        self.assert_links_resolve(tmpdir, self.all_documents(tmpdir))
 
-            checked = 0
-            for md in sorted(tmpdir.rglob("*.md")):
-                for target in MD_LINK.findall(md.read_text(encoding="utf-8")):
-                    if "://" in target or target.startswith(("#", "mailto:")):
-                        continue
-                    rel, _, anchor = target.partition("#")
-                    path = (md.parent / rel).resolve() if rel else md
-                    where = f"{md.relative_to(tmpdir)} -> {target}"
-                    self.assertTrue(path.exists(), msg=f"missing target: {where}")
-                    if anchor:
-                        self.assertIn(
-                            anchor,
-                            heading_slugs(path.read_text(encoding="utf-8")),
-                            msg=f"anchor not found: {where}",
-                        )
-                    checked += 1
-            self.assertGreater(checked, 0)
+    def test_links_follow_an_existing_docs_spelling(self):
+        tmpdir = self.bootstrapped(make_docs_dir=True)
+        self.assertNotIn("docs", os.listdir(tmpdir))
+        self.assert_links_resolve(tmpdir, self.all_documents(tmpdir))
+
+    def test_links_follow_existing_spellings_below_docs(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tmpdir = pathlib.Path(tmp.name)
+        for d in ("Docs/Memory/Log", "Docs/Plans/Current", "Docs/Plans/Archive"):
+            (tmpdir / d).mkdir(parents=True)
+        result = run_bootstrap(tmpdir)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(sorted(os.listdir(tmpdir / "Docs")), ["Memory", "Plans"])
+        self.assertIn("Log", os.listdir(tmpdir / "Docs/Memory"))
+        self.assertNotIn("log", os.listdir(tmpdir / "Docs/Memory"))
+        self.assertEqual(
+            sorted(os.listdir(tmpdir / "Docs/Plans")), ["Archive", "Current"]
+        )
+        self.assert_links_resolve(tmpdir, self.all_documents(tmpdir))
+
+    def test_upgraded_block_links_follow_capitalised_files(self):
+        tmpdir = self.bootstrapped(make_docs_dir=False)
+        docs = rename_case(tmpdir / "docs", "Docs")
+        memory = rename_case(docs / "memory", "Memory")
+        rename_case(memory / "memory-index.md", "Memory-Index.md")
+        rename_case(memory / "product.md", "Product.md")
+        plans = rename_case(docs / "plans", "Plans")
+        rename_case(plans / "current", "Current")
+        result = run_upgrade(tmpdir, input_text="y\n")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        agents = tmpdir / "AGENTS.md"
+        block = bootstrap.extract_memory_block(
+            agents.read_text(encoding="utf-8"), str(agents)
+        )
+        self.assertIn("Docs/Memory/Memory-Index.md", block)
+        self.assertIn("Docs/Plans/Current/", block)
+        self.assert_links_resolve(tmpdir, {agents: block})
+
+    def test_upgraded_block_links_follow_an_existing_docs_spelling(self):
+        tmpdir = self.bootstrapped(make_docs_dir=False)
+        (tmpdir / "docs").rename(tmpdir / "docs-renaming")
+        (tmpdir / "docs-renaming").rename(tmpdir / "Docs")
+        result = run_upgrade(tmpdir, input_text="y\n")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        agents = tmpdir / "AGENTS.md"
+        block = bootstrap.extract_memory_block(
+            agents.read_text(encoding="utf-8"), str(agents)
+        )
+        self.assertIn("Docs/memory/memory-index.md", block)
+        self.assert_links_resolve(tmpdir, {agents: block})
 
 
 class TestDescriptionSentence(unittest.TestCase):

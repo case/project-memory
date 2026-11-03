@@ -1,12 +1,12 @@
 # ${name}
 
-${desc_sentence} See [`docs/memory/product.md`](docs/memory/product.md) for what this is, [`docs/memory/architecture.md`](docs/memory/architecture.md) for how it's currently built.
+${desc_sentence} See [`${product_path}`](${product_path}) for what this is, [`${architecture_path}`](${architecture_path}) for how it's currently built.
 
 <!-- project-memory:start -->
 
 ## Project memory
 
-Project memory lives in `docs/memory/`. The index is at [`docs/memory/memory-index.md`](docs/memory/memory-index.md).
+Project memory lives in `${memory_dir}/`. The index is at [`${index_path}`](${index_path}).
 
 **Before suggesting** file layout, naming, dependencies, vendor choices, or conventions: read the index, then read the matching entry. The codebase is the source of truth - verify against it before relying on a specific path or name in memory.
 
@@ -18,8 +18,8 @@ Project memory lives in `docs/memory/`. The index is at [`docs/memory/memory-ind
 
 **When memory contradicts the code**: surface the conflict. Trust the code after verifying, then update or remove the stale entry.
 
-**Plans**: plan documents live in `docs/plans/current/`. Move a plan to `docs/plans/archive/` when its work is done, so `current/` lists only open work. Any relative links to a "current" plan will need to be updated to include its `archive/` path.
+**Plans**: plan documents live in `${plans_current}/`. Move a plan to `${plans_archive}/` when its work is done, so `${current_name}/` lists only open work. Any relative links to a "current" plan will need to be updated to include its `${archive_name}/` path.
 
-**Monorepos**: if this repo contains subprojects with their own `docs/memory/`, treat each subproject's memory as authoritative for work inside that subproject. The root `docs/memory/` covers concerns that span subprojects. See [the project-memory README](https://github.com/case/project-memory#monorepos) for the rationale.
+**Monorepos**: if this repo contains subprojects with their own `docs/memory/`, treat each subproject's memory as authoritative for work inside that subproject. The root `${memory_dir}/` covers concerns that span subprojects. See [the project-memory README](https://github.com/case/project-memory#monorepos) for the rationale.
 
 <!-- project-memory:end -->

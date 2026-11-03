@@ -11,4 +11,4 @@ Agents: consult before suggesting layout, naming, dependencies, vendors, or conv
 
 ## Log (newest first)
 
-- [${today} Bootstrap memory system](log/${today}-bootstrap.md) - initial setup of this memory system
+- [${today} Bootstrap memory system](${log_name}/${today}-bootstrap.md) - initial setup of this memory system

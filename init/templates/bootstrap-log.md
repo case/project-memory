@@ -13,7 +13,7 @@ Created the project memory system using `init/bootstrap.py`.
 Initial files:
 
 - `AGENTS.md` + `CLAUDE.md` at the project root
-- `docs/memory/memory-index.md`, `product.md`, `architecture.md`
+- `${index_path}`, `product.md`, `architecture.md`
 - This log entry
 
 Next: fill in `<placeholder>` strings in `product.md` and `architecture.md`.

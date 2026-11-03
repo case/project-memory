@@ -17,7 +17,9 @@
     "**/target",
     "**/dist",
     "**/build",
-    "**/vendor"
+    "**/vendor",
+    // Its ${placeholders} make the markdown plugin insert a space inside a code span.
+    "init/templates/AGENTS.md"
   ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.96.1.wasm@9c52244de2c25a33addc7ddacff4443234a2dc4b5d3f34131262d1e0df35007c",

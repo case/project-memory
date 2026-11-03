@@ -31,6 +31,7 @@ replacing it would delete them; --force overrides that.
 """
 
 import argparse
+import dataclasses
 import datetime
 import difflib
 import os
@@ -42,7 +43,6 @@ import sys
 
 START_MARKER = "<!-- project-memory:start -->"
 END_MARKER = "<!-- project-memory:end -->"
-PLANS_SUBDIRS = ("current", "archive")
 INDEX_PATH = "docs/memory/memory-index.md"
 
 
@@ -255,7 +255,9 @@ def upgrade_agents_md(
     existing = read_text(project_agents)
     template = read_text(template_agents)
     current_block = extract_memory_block(existing, str(project_agents))
-    new_block = extract_memory_block(template, str(template_agents))
+    new_block = string.Template(
+        extract_memory_block(template, str(template_agents))
+    ).substitute(DocsLayout.on_disk(project_root).template_vars())
 
     if current_block == new_block:
         print(f"AGENTS.md is already current ({project_agents})")
@@ -289,13 +291,18 @@ def upgrade_agents_md(
     return True
 
 
-def load_plans_readmes(templates_dir: pathlib.Path) -> dict[pathlib.Path, str]:
-    """Render the docs/plans READMEs, keyed by path relative to the project root."""
+def load_plans_readmes(
+    templates_dir: pathlib.Path, layout: "DocsLayout"
+) -> dict[pathlib.Path, str]:
+    """Render the plans READMEs, keyed by their layout path relative to the project root."""
+    names = layout.template_vars()
     return {
-        pathlib.Path("docs/plans") / subdir / "README.md": load_template(
-            templates_dir, f"plans-{subdir}-readme.md"
-        )
-        for subdir in PLANS_SUBDIRS
+        pathlib.Path(layout.current_readme): load_template(
+            templates_dir, "plans-current-readme.md", **names
+        ),
+        pathlib.Path(layout.archive_readme): load_template(
+            templates_dir, "plans-archive-readme.md", **names
+        ),
     }
 
 
@@ -348,26 +355,100 @@ def check_gitattributes(project_root: pathlib.Path) -> None:
         sys.exit(f"not a regular file, refusing to continue: {path}")
 
 
-def index_path(project_root: pathlib.Path) -> str:
-    """INDEX_PATH as spelled on disk, since git on Linux matches attribute paths by exact case.
+def on_disk_path(project_root: pathlib.Path, relpath: str) -> str:
+    """relpath spelled as the directories on disk spell it, since git on Linux matches case exactly.
 
-    Each component prefers an exact match, then an ASCII case-insensitive one. Falls back to INDEX_PATH.
+    A component matches exactly or ASCII case-insensitively. The spelling that reaches deepest
+    into existing directories wins, then an exact match, then the first sorted name.
+    Components below the deepest match keep relpath's spelling.
     """
-    current = project_root
-    spelled = []
-    for part in INDEX_PATH.split("/"):
-        try:
-            names = sorted(os.listdir(current))
-        except OSError:
-            return INDEX_PATH
-        if part not in names:
-            matches = [n for n in names if n.isascii() and n.lower() == part]
-            if not matches:
-                return INDEX_PATH
-            part = matches[0]
-        spelled.append(part)
-        current = current / part
-    return "/".join(spelled)
+    return "/".join(_spell_below(project_root, relpath.split("/"))[1])
+
+
+def _spell_below(directory: pathlib.Path, parts: list[str]) -> tuple[int, list[str]]:
+    """(components matched, spelling) of parts under directory; -1 when it is not a directory."""
+    if not parts:
+        return 0, []
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return -1, parts
+    head, rest = parts[0], parts[1:]
+    candidates = [head] if head in names else []
+    candidates += sorted(
+        n for n in names if n != head and n.isascii() and n.lower() == head.lower()
+    )
+    best = (0, parts)
+    for name in candidates:
+        depth, tail = _spell_below(directory / name, rest)
+        if depth + 1 > best[0]:
+            best = (depth + 1, [name, *tail])
+    return best
+
+
+def _under(
+    project_root: pathlib.Path, base: pathlib.PurePosixPath, name: str
+) -> pathlib.PurePosixPath:
+    return base / on_disk_path(project_root / base, name)
+
+
+@dataclasses.dataclass(frozen=True)
+class DocsLayout:
+    """Where each generated file goes, relative to the project root and spelled as on disk.
+
+    The index is resolved first. Every other path is resolved under the directories it chose,
+    so the files of one project never land in two differently spelled trees.
+    """
+
+    index: pathlib.PurePosixPath
+    product: pathlib.PurePosixPath
+    architecture: pathlib.PurePosixPath
+    log_dir: pathlib.PurePosixPath
+    current_readme: pathlib.PurePosixPath
+    archive_readme: pathlib.PurePosixPath
+
+    @classmethod
+    def on_disk(cls, project_root: pathlib.Path) -> "DocsLayout":
+        index = pathlib.PurePosixPath(on_disk_path(project_root, INDEX_PATH))
+        memory = index.parent
+        plans = _under(project_root, memory.parent, "plans")
+        current = _under(project_root, plans, "current")
+        archive = _under(project_root, plans, "archive")
+        return cls(
+            index=index,
+            product=_under(project_root, memory, "product.md"),
+            architecture=_under(project_root, memory, "architecture.md"),
+            log_dir=_under(project_root, memory, "log"),
+            current_readme=_under(project_root, current, "README.md"),
+            archive_readme=_under(project_root, archive, "README.md"),
+        )
+
+    @property
+    def plans_current(self) -> pathlib.PurePosixPath:
+        return self.current_readme.parent
+
+    @property
+    def plans_archive(self) -> pathlib.PurePosixPath:
+        return self.archive_readme.parent
+
+    def log_entry(
+        self, project_root: pathlib.Path, filename: str
+    ) -> pathlib.PurePosixPath:
+        return _under(project_root, self.log_dir, filename)
+
+    def template_vars(self) -> dict[str, str]:
+        """The ${...} substitutions templates use to link to these paths."""
+        return {
+            "memory_dir": str(self.index.parent),
+            "index_path": str(self.index),
+            "product_path": str(self.product),
+            "architecture_path": str(self.architecture),
+            "log_name": self.log_dir.name,
+            "plans_current": str(self.plans_current),
+            "plans_archive": str(self.plans_archive),
+            "current_name": self.plans_current.name,
+            "archive_name": self.plans_archive.name,
+        }
 
 
 def union_rule(index: str) -> str:
@@ -413,7 +494,7 @@ def has_union_rule(content: bytes, rule: str) -> bool:
     return any(line.split() == rule.split() for line in text.splitlines())
 
 
-def merge_gitattributes(project_root: pathlib.Path) -> None:
+def merge_gitattributes(project_root: pathlib.Path, index: str) -> None:
     """Create .gitattributes with the union rule, or offer to append it to an existing one.
 
     Leaves the file alone when git already applies a merge attribute to the
@@ -421,7 +502,6 @@ def merge_gitattributes(project_root: pathlib.Path) -> None:
     """
     path = project_root / ".gitattributes"
     existing = path.read_bytes() if path.exists() else None
-    index = index_path(project_root)
     rule = union_rule(index)
     current = index_merge_attribute(project_root, index)
     if current == "union":
@@ -519,16 +599,19 @@ def main() -> None:
     check_gitattributes(project_root)
 
     if args.upgrade:
-        plans_readmes = load_plans_readmes(templates_dir)
+        layout = DocsLayout.on_disk(project_root)
+        plans_readmes = load_plans_readmes(templates_dir, layout)
         if upgrade_agents_md(project_root, templates_dir, force=args.force):
             write_plans_readmes(project_root, plans_readmes)
-            merge_gitattributes(project_root)
+            merge_gitattributes(project_root, layout.index.as_posix())
         return
 
     if not args.name or not args.description:
         ap.error("name and description are required unless --upgrade is set")
 
     today = datetime.date.today().isoformat()
+    layout = DocsLayout.on_disk(project_root)
+    paths = layout.template_vars()
     author = args.author or git_user_name(project_root)
 
     # Render all templates.
@@ -538,10 +621,11 @@ def main() -> None:
         name=args.name,
         desc=args.description,
         desc_sentence=as_sentence(args.description),
+        **paths,
     )
     claude_md = load_template(templates_dir, "CLAUDE.md")
     memory_index = load_template(
-        templates_dir, "memory-index.md", name=args.name, today=today
+        templates_dir, "memory-index.md", name=args.name, today=today, **paths
     )
     product = load_template(
         templates_dir,
@@ -559,15 +643,17 @@ def main() -> None:
         today=today,
     )
     bootstrap_log = load_template(
-        templates_dir, "bootstrap-log.md", author=author, today=today
+        templates_dir, "bootstrap-log.md", author=author, today=today, **paths
     )
-    plans_readmes = load_plans_readmes(templates_dir)
+    plans_readmes = load_plans_readmes(templates_dir, layout)
 
     memory_files = {
-        pathlib.Path("docs/memory/memory-index.md"): memory_index,
-        pathlib.Path("docs/memory/product.md"): product,
-        pathlib.Path("docs/memory/architecture.md"): architecture,
-        pathlib.Path(f"docs/memory/log/{today}-bootstrap.md"): bootstrap_log,
+        pathlib.Path(layout.index): memory_index,
+        pathlib.Path(layout.product): product,
+        pathlib.Path(layout.architecture): architecture,
+        pathlib.Path(
+            layout.log_entry(project_root, f"{today}-bootstrap.md")
+        ): bootstrap_log,
     }
 
     # Pre-flight: bail before any prompts if a memory file already exists.
@@ -591,7 +677,7 @@ def main() -> None:
     # Root files: create new, or interactively offer to merge into existing.
     merge_agents_md(project_root / "AGENTS.md", agents_md)
     merge_claude_md(project_root / "CLAUDE.md", claude_md)
-    merge_gitattributes(project_root)
+    merge_gitattributes(project_root, layout.index.as_posix())
 
     # Memory files: write fresh (pre-flight guaranteed no conflicts).
     for relpath, content in memory_files.items():

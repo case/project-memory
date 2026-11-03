@@ -10,3 +10,10 @@ bin/lint
 echo
 echo "==> unittest"
 python3 -m unittest discover tests -v
+
+# macOS filesystems ignore case, so also run the tests on Linux there.
+if [ "$(uname -s)" = Darwin ]; then
+    echo
+    echo "==> unittest (Linux container)"
+    bin/test-linux
+fi

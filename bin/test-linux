@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Run the unit tests in an Alpine container, where the filesystem is case-sensitive.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: docker not found on PATH. It is needed to run the tests on Linux." >&2
+    exit 1
+fi
+
+image=project-memory-test
+docker build --quiet --tag "$image" - <tests/linux/Dockerfile >/dev/null
+
+# The tests build their repos under the temp dir, so prove it is case-sensitive first.
+docker run --rm --network none --user "$(id -u):$(id -g)" --env PYTHONDONTWRITEBYTECODE=1 \
+    --volume "$PWD:/src:ro" --workdir /src "$image" sh -euc '
+        probe="$(mktemp -d)"
+        touch "$probe/a"
+        if [ -e "$probe/A" ]; then
+            echo "Error: the container temp dir is case-insensitive." >&2
+            exit 1
+        fi
+        python3 -m unittest discover tests
+    '
