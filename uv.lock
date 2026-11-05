@@ -59,7 +59,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pymarkdownlnt", specifier = "==0.9.38" },
+    { name = "pymarkdownlnt", specifier = "==0.9.41" },
     { name = "ruff", specifier = "==0.17.1" },
     { name = "shellcheck-py", specifier = "==0.11.0.1" },
 ]
@@ -226,7 +226,7 @@ wheels = [
 
 [[package]]
 name = "pymarkdownlnt"
-version = "0.9.38"
+version = "0.9.41"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "application-file-scanner" },
@@ -235,9 +235,9 @@ dependencies = [
     { name = "py-walk" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/98/c4ef7b1bac73ebc90418c29a89c3c81b2d4595e50683d7a85bc6a6513fe3/pymarkdownlnt-0.9.38.tar.gz", hash = "sha256:bd79a2cef3a90652135672272b20aabb8f5db8dd870983ee8710f7daf64a74a7", size = 442175, upload-time = "2026-06-11T03:28:31.693Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/ba/196874ceaa6c603e39578e92fa1dc8356dec3205d2437c7b1f7bcf606825/pymarkdownlnt-0.9.41.tar.gz", hash = "sha256:d6a477498feacf004ba1eea1847e70cbb083c7175ee62bde7a8f11bf2ce943cb", size = 473432, upload-time = "2026-10-13T01:52:52.595Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/d1/eee0e6d73cf9b4d20af1ec42583999fd5af4952fdc32276734ad9fbbb737/pymarkdownlnt-0.9.38-py3-none-any.whl", hash = "sha256:37eda39c2ba0d5be10abe0d1150e4564b08cd26a3570b1575a972db5a423aa39", size = 515479, upload-time = "2026-06-11T03:28:30.03Z" },
+    { url = "https://files.pythonhosted.org/packages/83/03/807220c611e4ff59045c70815d9ca0c8c3a7b4352e8cad0fb7efc1463073/pymarkdownlnt-0.9.41-py3-none-any.whl", hash = "sha256:677985658f0d452c9d0a639d2aca11060a99874c127b3d7513d7f33dc5462973", size = 557287, upload-time = "2026-10-13T01:52:51.397Z" },
 ]
 
 [[package]]
