@@ -8,7 +8,7 @@ tags: [log, decisions, monorepo, product, docs]
 
 # 2026-05-12: Monorepo support pattern documented
 
-Clarified that monorepos are in scope and described the recommended layout. Triggered by considering how this system applies to a personal homelab monorepo where each `infra/<thing>` is a distinct subproject. Documentation-only change; no code edits.
+Clarified that monorepos are in scope and described the recommended layout. Triggered by considering how this system applies to a monorepo where each subdirectory is a distinct subproject. Documentation-only change; no code edits.
 
 ## What landed
 
@@ -19,7 +19,7 @@ Clarified that monorepos are in scope and described the recommended layout. Trig
 ## Decisions
 
 - **Per-subproject `docs/memory/` over a flat directory with frontmatter scoping**. Considered a `scope: <subdir>` frontmatter field on entries in a single shared memory directory. Rejected: that reinvents directory structure with metadata, forces an index-and-filter step on every read, and breaks the "memory lives next to the code" convention. Locality wins for the common case (one subproject at a time).
-- **Generic wording in `product.md`, not concrete example trees**. First draft used `infra/signoz` / `infra/hostbox` from the originating homelab; rewrote to abstract "subproject" language because `product.md` is open-source-facing and shouldn't prescribe one user's layout as canonical.
+- **Generic wording in `product.md`, not concrete example trees**. First draft used concrete directory names from one real monorepo; rewrote to abstract "subproject" language because `product.md` is open-source-facing and shouldn't prescribe one user's layout as canonical.
 - **Guidance inside the `project-memory:start/end` markers in `AGENTS.md`**. Inside the markers means the bootstrap script's merge logic carries the new line forward when users re-bootstrap into an existing `AGENTS.md`. Outside would be a one-time-only insertion.
 - **Conditional phrasing ("if this repo contains subprojects with their own `docs/memory/`")**. Makes the monorepo line a no-op for single-project users without needing a separate gating header.
 
